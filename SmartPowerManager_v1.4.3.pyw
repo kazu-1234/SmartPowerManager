@@ -12,6 +12,16 @@ PCのシャットダウンスケジュール管理アプリケーション
 - 自動起動タブ: MACアドレス表示（Pico W用）
 - シャットダウン前確認ダイアログ（60秒カウントダウン）
 
+v1.4.3 変更点:
+- 起動エラーの修正
+- アップデート機能の修正（リポジトリURL修正）
+- エラーハンドリングの強化
+
+v1.4.2 変更点:
+- v1.4.1のアップデート不具合を修正
+- 起動時のエラーを修正
+- 不要なファイルの整理
+
 v1.4.0 変更点:
 - シャットダウン前に確認ダイアログを表示（60秒カウントダウン）
 - 即時シャットダウンに変更
@@ -54,12 +64,12 @@ except Exception:
 # =============================================================================
 # 定数定義
 # =============================================================================
-APP_VERSION = "1.4.1"
+APP_VERSION = "1.4.3"
 APP_TITLE = "SmartPowerManager"  # アプリ名はシンプルに
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedules.json")
 # GitHubのリポジトリ情報
 GITHUB_USER = "kazu-1234"
-GITHUB_REPO = "-SmartPowerManager"
+GITHUB_REPO = "SmartPowerManager"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
 
 WEEKDAYS_JP = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
@@ -108,6 +118,20 @@ def get_mac_addresses():
             pass
     
     return mac_list
+
+
+# =============================================================================
+# PyInstaller用リソースパス取得関数
+# =============================================================================
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 
 # =============================================================================
@@ -315,7 +339,10 @@ class SmartPowerManagerApp(tk.Tk):
         self._check_disclaimer()
         
         # スタイル設定
-        self._setup_styles()
+        try:
+            self._setup_styles()
+        except:
+            pass
         
         self.monitor_running = False
         self.monitor_thread = None
@@ -726,16 +753,25 @@ class SmartPowerManagerApp(tk.Tk):
                 "filename": exe_asset["name"]
             }
             
+            # バージョン比較関数
+            def parse_version(v):
+                return tuple(map(int, (v.split("."))))
+
             # バージョン比較
-            if tag_name > APP_VERSION:
+            if parse_version(tag_name) > parse_version(APP_VERSION):
                 self.after(0, lambda: self._confirm_update(tag_name))
             else:
                 self.after(0, lambda: self._update_ui_no_update(tag_name))
                 
+                
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                # まだリリースがない場合など
-                self.after(0, lambda: self._update_ui_error("最新リリースが見つかりません"))
+                # リポジトリまたはリリースが見つからない
+                self.after(0, lambda: self._update_ui_error(
+                    f"リポジトリまたは最新リリースが見つかりません。\n"
+                    f"({GITHUB_USER}/{GITHUB_REPO})\n"
+                    "インターネット接続やリポジトリ設定を確認してください。"
+                ))
             elif e.code == 403:
                 self.after(0, lambda: self._update_ui_error("APIレート制限です。しばらく待って再試行してください"))
             else:
@@ -766,6 +802,8 @@ class SmartPowerManagerApp(tk.Tk):
         else:
             self.check_update_btn.config(state="normal")
             self.update_status_var.set("更新をキャンセルしました")
+
+
     
     def _start_download(self):
         self.update_status_var.set("新しいバージョンをダウンロード中...")
@@ -793,10 +831,16 @@ class SmartPowerManagerApp(tk.Tk):
             if os.path.abspath(target_path) == os.path.abspath(current_exe):
                 target_path += ".new"
 
-            # EXEをダウンロード
+            # EXEをダウンロード（チャンク読み込み）
             with urllib.request.urlopen(download_url, timeout=60) as response:
+                # total_size = int(response.getheader('Content-Length', 0))
+                block_size = 8192
                 with open(target_path, 'wb') as f:
-                    f.write(response.read())
+                    while True:
+                        buffer = response.read(block_size)
+                        if not buffer:
+                            break
+                        f.write(buffer)
             
             self.after(0, lambda: self._execute_update(target_path))
             
@@ -846,8 +890,14 @@ del "%~f0"
                 f.write(batch_content)
             
             # バッチ実行して終了
-            subprocess.Popen([batch_file], shell=True)
-            self.quit()
+            # CREATE_NEW_CONSOLE (0x00000010) を使用して独立したコンソールで実行
+            CREATE_NEW_CONSOLE = 0x00000010
+            subprocess.Popen(
+                ["cmd.exe", "/c", batch_file],
+                creationflags=CREATE_NEW_CONSOLE
+            )
+            # プロセス起動を確実にするため少し待機してから終了
+            self.after(1000, self.quit)
             
         except Exception as e:
             self._update_ui_error(f"更新実行エラー: {e}")
@@ -1207,6 +1257,93 @@ del "%~f0"
     def _update_status(self):
         # ステータスバー削除のため空実装
         pass
+    
+    def _check_disclaimer(self):
+        """免責事項の確認（初回起動時）"""
+        if self.schedule_manager.disclaimer_accepted:
+            return
+
+        # ダイアログウィンドウ作成
+        dialog = tk.Toplevel(self)
+        dialog.title("利用規約・免責事項")
+        dialog.geometry("500x400")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # 画面中央配置
+        dialog.update_idletasks()
+        try:
+            x = (dialog.winfo_screenwidth() - 500) // 2
+            y = (dialog.winfo_screenheight() - 400) // 2
+            dialog.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
+
+        # タイトル
+        try:
+            ttk.Label(dialog, text="利用規約・免責事項", font=("Meiryo UI", 12, "bold")).pack(pady=10)
+        except Exception:
+            # フォントがない場合
+            ttk.Label(dialog, text="利用規約・免責事項", font=("", 12, "bold")).pack(pady=10)
+
+        # テキストエリア
+        text_frame = ttk.Frame(dialog, padding=10)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, height=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text_widget.config(yscrollcommand=scrollbar.set)
+
+        disclaimer_text = (
+            "本ソフトウェア（SmartPowerManager）を使用する前に、以下の免責事項をよくお読みください。\n\n"
+            "1. 本ソフトウェアの使用により生じた、いかなる損害（データ消失、システム不具合、利益損失など）についても、"
+            "開発者は一切の責任を負いません。\n\n"
+            "2. 本ソフトウェアは、ユーザーの設定したスケジュールに従ってPCをシャットダウンします。"
+            "未保存の作業がある場合、データが失われる可能性があります。\n\n"
+            "3. 自動更新機能はGitHubの公開リポジトリを利用しています。\n\n"
+            "本ソフトウェアを使用することで、上記に同意したものとみなされます。"
+        )
+        text_widget.insert(tk.END, disclaimer_text)
+        text_widget.config(state="disabled")
+
+        # 同意ボタン
+        btn_frame = ttk.Frame(dialog, padding=10)
+        btn_frame.pack(fill=tk.X)
+
+        def on_accept():
+            self.schedule_manager.disclaimer_accepted = True
+            self.schedule_manager.save()
+            dialog.destroy()
+
+        def on_reject():
+            sys.exit(0)
+
+        ttk.Button(btn_frame, text="同意して開始", command=on_accept).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(btn_frame, text="同意しない（終了）", command=on_reject).pack(side=tk.RIGHT, padx=5)
+
+        # ×ボタンでも終了
+        dialog.protocol("WM_DELETE_WINDOW", on_reject)
+        
+        # ダイアログが閉じるまで待機
+        self.wait_window(dialog)
+
+    def _setup_styles(self):
+        """スタイル設定"""
+        style = ttk.Style()
+        if "vista" in style.theme_names():
+            style.theme_use("vista")
+        
+        default_font = ("Meiryo UI", 9)
+        try:
+            style.configure(".", font=default_font)
+            style.configure("Treeview", font=default_font, rowheight=25)
+            style.configure("Treeview.Heading", font=("Meiryo UI", 9, "bold"))
+        except Exception:
+            pass
     
     def _on_close(self):
         self.monitor_running = False
