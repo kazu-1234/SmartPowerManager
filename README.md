@@ -39,7 +39,8 @@ python SmartPowerManager_v1.4.0.pyw
 
 ## スクリーンショット
 
-（アプリのスクリーンショットをここに追加）
+<img width="903" height="687" alt="image" src="https://github.com/user-attachments/assets/1e69671f-8200-4336-8a7c-508cff5887cf" />
+
 
 ## バージョン履歴
 
