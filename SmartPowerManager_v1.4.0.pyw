@@ -648,17 +648,31 @@ class SmartPowerManagerApp(tk.Tk):
         frame.pack(fill=tk.BOTH, expand=True)
         
         # タイトル
+        # フォントを画像（マイブーム）の雰囲気に合わせる（Meiryo UI, Gothic系）
+        custom_font = ("Meiryo UI", 14, "bold")
+        normal_font = ("Meiryo UI", 11)
+        
         ttk.Label(frame, text="📦 自動アップデート",
-                 font=("", 14, "bold")).pack(pady=(0, 20))
+                 font=custom_font).pack(pady=(0, 20))
         
         # 現在のバージョン
         ttk.Label(frame, text=f"現在のバージョン: v{APP_VERSION}",
-                 font=("", 11)).pack(pady=5)
+                 font=normal_font).pack(pady=5)
+                 
+        # 免責事項（アプリ内）
+        disclaimer_frame = ttk.LabelFrame(frame, text="免責事項", padding="10")
+        disclaimer_frame.pack(fill=tk.X, pady=(0, 20))
+        disclaimer_text = (
+            "本ソフトウェアの使用により生じた損害（データ消失など）について、\n"
+            "開発者は一切の責任を負いません。自己責任でご使用ください。"
+        )
+        ttk.Label(disclaimer_frame, text=disclaimer_text, 
+                 justify=tk.LEFT, foreground="#555555", font=("Meiryo UI", 9)).pack(anchor=tk.W)
         
         # ステータス表示
         self.update_status_var = tk.StringVar(value="ボタンを押して更新を確認してください")
         status_label = ttk.Label(frame, textvariable=self.update_status_var,
-                                foreground="blue", padding=10)
+                                foreground="blue", padding=10, font=normal_font)
         status_label.pack(pady=10)
         
         # 更新確認ボタン
@@ -842,24 +856,38 @@ del "%~f0"
         settings_frame = ttk.Frame(self.settings_tab)
         settings_frame.pack(fill=tk.BOTH, expand=True)
         
+        # フォント設定
+        title_font = ("Meiryo UI", 10, "bold")
+        normal_font = ("Meiryo UI", 9)
+        
         debug_frame = ttk.LabelFrame(settings_frame, text="動作モード", padding="10")
         debug_frame.pack(fill=tk.X, pady=5)
         
         self.debug_mode_var = tk.BooleanVar(value=self.schedule_manager.debug_mode)
-        ttk.Checkbutton(debug_frame, 
+        # スタイル適用のためttk.Checkbuttonを使用するが、フォント指定はstyleが必要。
+        # 個別に指定できない場合もあるが、ラベルには適用可能。
+        
+        # Checkbuttonのフォント変更はStyle設定が必要だが、簡易的に親フレームのフォントに依存させるか、
+        # ここではCheckbutton自体のフォントはデフォルトのまま（Meiryo UIに近い）でも良いが、
+        # 一応統一を試みる。TkinterのStandard Checkbuttonを使う手もあるがttkで統一。
+        
+        cbtn = ttk.Checkbutton(debug_frame, 
                        text="デバッグモード（実際にシャットダウンしない）",
                        variable=self.debug_mode_var,
-                       command=self._on_debug_mode_changed).pack(anchor=tk.W)
+                       command=self._on_debug_mode_changed)
+        cbtn.pack(anchor=tk.W)
+        # cbtn.configure(font=normal_font) # ttkでは効かない場合がある
+        
         ttk.Label(debug_frame, 
                  text="※ 初回使用時はデバッグモードを有効にして動作確認することをお勧めします。",
-                 foreground="gray").pack(anchor=tk.W, pady=(5, 0))
+                 foreground="gray", font=normal_font).pack(anchor=tk.W, pady=(5, 0))
         
         version_frame = ttk.LabelFrame(settings_frame, text="バージョン情報", padding="10")
         version_frame.pack(fill=tk.X, pady=5)
-        ttk.Label(version_frame, text=f"SmartPowerManager v{APP_VERSION}",
-                 font=("", 10, "bold")).pack(anchor=tk.W)
+        ttk.Label(version_frame, text=f"{APP_TITLE} v{APP_VERSION}",
+                 font=title_font).pack(anchor=tk.W)
         ttk.Label(version_frame, 
-                 text="PCシャットダウンスケジュール管理アプリ").pack(anchor=tk.W)
+                 text="PCシャットダウンスケジュール管理アプリ", font=normal_font).pack(anchor=tk.W)
     
     # =========================================================================
     # イベントハンドラ
