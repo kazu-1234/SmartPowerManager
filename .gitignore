@@ -4,7 +4,8 @@ __pycache__/
 *.pyc
 .vscode/
 
-# PyInstaller build artifacts
+# Build artifacts
 build/
 dist/
+dist_nuitka/
 *.spec
