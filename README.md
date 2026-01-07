@@ -16,20 +16,25 @@ PCのシャットダウンスケジュールを管理するWindowsアプリケ�
 - Windows 10/11
 - Python 3.8以上
 
-## インストール
+## インストール（推奨）
 
-```bash
-git clone https://github.com/YOUR_USERNAME/SmartPowerManager.git
-cd SmartPowerManager
-```
+1. [Releases](../../releases) ページから最新の `SmartPowerManager.exe` をダウンロードしてください。
+2. 任意のフォルダ（例: ドキュメントなど）に保存します。
 
 ## 使用方法
 
+ダウンロードした `SmartPowerManager.exe` をダブルクリックして起動します。
+初回の起動時に、空の `schedules.json` が同じフォルダに自動作成されます。
+
+### 開発者向け（ソースコードから実行）
+
+Python環境がある場合は、ソースコードから直接実行することも可能です。
+
 ```bash
+git clone https://github.com/kazu-1234/SmartPowerManager.git
+cd SmartPowerManager
 python SmartPowerManager_v1.4.0.pyw
 ```
-
-または `.pyw` ファイルをダブルクリックして起動。
 
 ## スクリーンショット
 
