@@ -637,24 +637,54 @@ class SmartPowerManagerApp(tk.Tk):
         self._log("MACアドレスを再取得しました")
     
     def _setup_update_tab(self):
+        """アップデートタブ - GitHub連携機能"""
         placeholder_frame = ttk.Frame(self.update_tab)
-        placeholder_frame.pack(expand=True)
+        placeholder_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        ttk.Label(placeholder_frame, text="📦 アップデート機能",
-                 font=("", 14, "bold")).pack(pady=10)
-        ttk.Label(placeholder_frame, 
-                 text="この機能は将来のアップデートで実装予定です。\n"
-                      "GitHubからの自動更新を実現します。",
-                 justify=tk.CENTER).pack(pady=20)
+        # タイトル
+        ttk.Label(placeholder_frame, text="📦 アップデート確認",
+                 font=("", 14, "bold")).pack(pady=(0, 10))
+                 
+        info_text = (
+            "最新のアップデートはGitHubリポジトリで公開されています。\n"
+            "以下のリンクから最新版のEXEファイルをダウンロードしてください。"
+        )
+        ttk.Label(placeholder_frame, text=info_text, justify=tk.CENTER).pack(pady=10)
         
-        url_frame = ttk.LabelFrame(placeholder_frame, text="GitHub設定", padding="10")
-        url_frame.pack(fill=tk.X, padx=20, pady=10)
-        ttk.Label(url_frame, text="リポジトリURL:").pack(anchor=tk.W)
-        self.github_url_var = tk.StringVar(value="")
-        ttk.Entry(url_frame, textvariable=self.github_url_var, 
-                 width=50, state="disabled").pack(fill=tk.X, pady=5)
-        ttk.Label(url_frame, text="※ URLは後から設定されます",
-                 foreground="gray").pack(anchor=tk.W)
+        # GitHubリンクフレーム
+        link_frame = ttk.LabelFrame(placeholder_frame, text="GitHub リポジトリ", padding="15")
+        link_frame.pack(fill=tk.X, pady=10)
+        
+        url = "https://github.com/kazu-1234/-SmartPowerManager"
+        
+        # URL表示
+        url_entry = ttk.Entry(link_frame, width=50)
+        url_entry.insert(0, url)
+        url_entry.config(state="readonly")
+        url_entry.pack(fill=tk.X, pady=(0, 10))
+        
+        # ボタン
+        btn_frame = ttk.Frame(link_frame)
+        btn_frame.pack()
+        
+        ttk.Button(btn_frame, text="🌏 ブラウザで開く", 
+                  command=self._open_github).pack(side=tk.LEFT, padx=5)
+                  
+        # アップデート手順
+        step_frame = ttk.LabelFrame(placeholder_frame, text="アップデート手順", padding="10")
+        step_frame.pack(fill=tk.X, pady=10)
+        
+        steps = (
+            "1. 「ブラウザで開く」をクリックしてGitHubへ移動\n"
+            "2. 最新のリリース（Releases）を確認\n"
+            "3. 新しい .exe ファイルをダウンロード\n"
+            "4. 現在のファイルと置き換える（上書き保存）"
+        )
+        ttk.Label(step_frame, text=steps, justify=tk.LEFT).pack(anchor=tk.W)
+        
+        # 現在のバージョン
+        ttk.Label(placeholder_frame, text=f"現在のバージョン: v{APP_VERSION}",
+                 foreground="gray").pack(side=tk.BOTTOM, pady=10)
     
     def _setup_settings_tab(self):
         settings_frame = ttk.Frame(self.settings_tab)
@@ -838,6 +868,38 @@ class SmartPowerManagerApp(tk.Tk):
         self.log_text.config(state="disabled")
     
     # =========================================================================
+    # メニューバー
+    # =========================================================================
+    def _create_menu(self):
+        """メニューバーを作成"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="ファイル", menu=file_menu)
+        file_menu.add_command(label="設定を保存", command=self.schedule_manager.save)
+        file_menu.add_separator()
+        file_menu.add_command(label="終了", command=self._on_close) # Changed from on_closing to _on_close
+        
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="ヘルプ", menu=help_menu)
+        help_menu.add_command(label="GitHubを開く", command=self._open_github)
+        help_menu.add_separator()
+        help_menu.add_command(label="バージョン情報", command=self._show_version)
+
+    def _open_github(self):
+        """GitHubリポジトリをブラウザで開く"""
+        import webbrowser
+        webbrowser.open("https://github.com/kazu-1234/-SmartPowerManager")
+
+    def _show_version(self):
+        """バージョン情報を表示"""
+        messagebox.showinfo("バージョン情報", 
+                          f"SmartPowerManager\n\n" # APP_TITLE is not defined in the snippet, using literal
+                          "© 2026 SmartPowerManager Project\n"
+                          "Powered by Python & Tkinter")
+
+    # =========================================================================
     # 監視スレッド
     # =========================================================================
     def _start_monitor(self):
@@ -845,6 +907,7 @@ class SmartPowerManagerApp(tk.Tk):
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.monitor_thread.start()
         self._log("スケジュール監視を開始しました")
+
     
     def _monitor_loop(self):
         last_check_minute = -1
