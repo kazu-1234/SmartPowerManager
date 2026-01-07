@@ -31,6 +31,8 @@ from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 import threading
 import time
+import urllib.request
+import urllib.error
 
 # --- コンソールウィンドウを非表示にする (Windows用) ---
 try:
@@ -53,8 +55,13 @@ except Exception:
 # 定数定義
 # =============================================================================
 APP_VERSION = "1.4.0"
-APP_TITLE = f"SmartPowerManager v{APP_VERSION}"
+APP_TITLE = "SmartPowerManager"  # アプリ名はシンプルに
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedules.json")
+# GitHubのリポジトリ情報
+GITHUB_USER = "kazu-1234"
+GITHUB_REPO = "-SmartPowerManager"
+VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/version.txt"
+EXE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/dist/SmartPowerManager.exe"
 
 WEEKDAYS_JP = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
 WEEKDAYS_SHORT = ["月", "火", "水", "木", "金", "土", "日"]
@@ -637,54 +644,143 @@ class SmartPowerManagerApp(tk.Tk):
         self._log("MACアドレスを再取得しました")
     
     def _setup_update_tab(self):
-        """アップデートタブ - GitHub連携機能"""
-        placeholder_frame = ttk.Frame(self.update_tab)
-        placeholder_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        """アップデートタブ - 自動更新機能"""
+        frame = ttk.Frame(self.update_tab, padding="20")
+        frame.pack(fill=tk.BOTH, expand=True)
         
         # タイトル
-        ttk.Label(placeholder_frame, text="📦 アップデート確認",
-                 font=("", 14, "bold")).pack(pady=(0, 10))
-                 
-        info_text = (
-            "最新のアップデートはGitHubリポジトリで公開されています。\n"
-            "以下のリンクから最新版のEXEファイルをダウンロードしてください。"
-        )
-        ttk.Label(placeholder_frame, text=info_text, justify=tk.CENTER).pack(pady=10)
-        
-        # GitHubリンクフレーム
-        link_frame = ttk.LabelFrame(placeholder_frame, text="GitHub リポジトリ", padding="15")
-        link_frame.pack(fill=tk.X, pady=10)
-        
-        url = "https://github.com/kazu-1234/-SmartPowerManager"
-        
-        # URL表示
-        url_entry = ttk.Entry(link_frame, width=50)
-        url_entry.insert(0, url)
-        url_entry.config(state="readonly")
-        url_entry.pack(fill=tk.X, pady=(0, 10))
-        
-        # ボタン
-        btn_frame = ttk.Frame(link_frame)
-        btn_frame.pack()
-        
-        ttk.Button(btn_frame, text="🌏 ブラウザで開く", 
-                  command=self._open_github).pack(side=tk.LEFT, padx=5)
-                  
-        # アップデート手順
-        step_frame = ttk.LabelFrame(placeholder_frame, text="アップデート手順", padding="10")
-        step_frame.pack(fill=tk.X, pady=10)
-        
-        steps = (
-            "1. 「ブラウザで開く」をクリックしてGitHubへ移動\n"
-            "2. 最新のリリース（Releases）を確認\n"
-            "3. 新しい .exe ファイルをダウンロード\n"
-            "4. 現在のファイルと置き換える（上書き保存）"
-        )
-        ttk.Label(step_frame, text=steps, justify=tk.LEFT).pack(anchor=tk.W)
+        ttk.Label(frame, text="📦 自動アップデート",
+                 font=("", 14, "bold")).pack(pady=(0, 20))
         
         # 現在のバージョン
-        ttk.Label(placeholder_frame, text=f"現在のバージョン: v{APP_VERSION}",
-                 foreground="gray").pack(side=tk.BOTTOM, pady=10)
+        ttk.Label(frame, text=f"現在のバージョン: v{APP_VERSION}",
+                 font=("", 11)).pack(pady=5)
+        
+        # ステータス表示
+        self.update_status_var = tk.StringVar(value="ボタンを押して更新を確認してください")
+        status_label = ttk.Label(frame, textvariable=self.update_status_var,
+                                foreground="blue", padding=10)
+        status_label.pack(pady=10)
+        
+        # 更新確認ボタン
+        self.check_update_btn = ttk.Button(frame, text="アップデートを確認",
+                                         command=self._check_for_updates)
+        self.check_update_btn.pack(pady=10)
+        
+        # プログレスバー
+        self.progress = ttk.Progressbar(frame, mode="indeterminate", length=300)
+    
+    def _check_for_updates(self):
+        """アップデートを確認する"""
+        self.check_update_btn.config(state="disabled")
+        self.update_status_var.set("更新を確認中...")
+        self.progress.pack(pady=10)
+        self.progress.start()
+        
+        # 別スレッドで確認
+        threading.Thread(target=self._update_check_worker, daemon=True).start()
+    
+    def _update_check_worker(self):
+        try:
+            # version.txt を取得 (キャッシュ回避のためタイムスタンプを付与)
+            url = f"{VERSION_URL}?t={int(time.time())}"
+            with urllib.request.urlopen(url, timeout=10) as response:
+                latest_version = response.read().decode("utf-8").strip()
+            
+            # バージョン比較
+            if latest_version > APP_VERSION:
+                self.after(0, lambda: self._confirm_update(latest_version))
+            else:
+                self.after(0, lambda: self._update_ui_no_update(latest_version))
+                
+        except Exception as e:
+            self.after(0, lambda: self._update_ui_error(str(e)))
+    
+    def _update_ui_no_update(self, version):
+        self.progress.stop()
+        self.progress.pack_forget()
+        self.check_update_btn.config(state="normal")
+        self.update_status_var.set(f"お使いのバージョン (v{APP_VERSION}) は最新です。")
+        messagebox.showinfo("アップデート", "最新バージョンです。")
+    
+    def _update_ui_error(self, error_msg):
+        self.progress.stop()
+        self.progress.pack_forget()
+        self.check_update_btn.config(state="normal")
+        self.update_status_var.set("エラーが発生しました")
+        messagebox.showerror("エラー", f"更新確認エラー: {error_msg}")
+
+    def _confirm_update(self, latest_version):
+        self.progress.stop()
+        self.progress.pack_forget()
+        msg = f"新しいバージョン v{latest_version} が利用可能です。\n今すぐ更新しますか？\n（更新後、アプリは自動的に再起動します）"
+        if messagebox.askyesno("アップデート", msg):
+            self._start_download()
+        else:
+            self.check_update_btn.config(state="normal")
+            self.update_status_var.set("更新をキャンセルしました")
+    
+    def _start_download(self):
+        self.update_status_var.set("新しいバージョンをダウンロード中...")
+        self.progress.pack(pady=10)
+        self.progress.start()
+        threading.Thread(target=self._download_worker, daemon=True).start()
+        
+    def _download_worker(self):
+        try:
+            # 実行ファイルのパスを取得
+            current_exe = sys.executable
+            download_dir = os.path.dirname(os.path.abspath(current_exe))
+            temp_exe = os.path.join(download_dir, "new_SmartPowerManager.exe")
+            
+            # EXEをダウンロード
+            with urllib.request.urlopen(EXE_URL, timeout=60) as response:
+                with open(temp_exe, 'wb') as f:
+                    f.write(response.read())
+            
+            self.after(0, lambda: self._execute_update(temp_exe))
+            
+        except Exception as e:
+            self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}"))
+
+    def _execute_update(self, temp_exe):
+        """バッチファイルを作成して更新を実行"""
+        try:
+            current_exe = sys.executable
+            # .pywで実行中は更新できない（開発中）ため警告
+            if not current_exe.lower().endswith(".exe"):
+                self.progress.stop()
+                self.progress.pack_forget()
+                self.check_update_btn.config(state="normal")
+                messagebox.showwarning("開発モード", "Pythonスクリプト実行中は自動更新できません。\nダウンロードは完了しました。")
+                self.update_status_var.set("ダウンロード完了（更新スキップ）")
+                return
+
+            exe_name = os.path.basename(current_exe)
+            batch_file = os.path.join(os.path.dirname(current_exe), "_update.bat")
+            
+            # バッチファイル内容
+            # 1. 少し待機（アプリ終了待ち）
+            # 2. 古いEXEを削除
+            # 3. 新しいEXEをリネーム
+            # 4. アプリ起動
+            # 5. バッチ削除
+            batch_content = f"""@echo off
+timeout /t 2 /nobreak >nul
+del "{exe_name}"
+move "new_SmartPowerManager.exe" "{exe_name}"
+start "" "{exe_name}"
+del "%~f0"
+"""
+            with open(batch_file, "w", encoding="cp932") as f:
+                f.write(batch_content)
+            
+            # バッチ実行して終了
+            subprocess.Popen([batch_file], shell=True)
+            self.quit()
+            
+        except Exception as e:
+            self._update_ui_error(f"更新実行エラー: {e}")
     
     def _setup_settings_tab(self):
         settings_frame = ttk.Frame(self.settings_tab)
@@ -895,7 +991,7 @@ class SmartPowerManagerApp(tk.Tk):
     def _show_version(self):
         """バージョン情報を表示"""
         messagebox.showinfo("バージョン情報", 
-                          f"SmartPowerManager\n\n" # APP_TITLE is not defined in the snippet, using literal
+                          f"{APP_TITLE} v{APP_VERSION}\n\n"
                           "© 2026 SmartPowerManager Project\n"
                           "Powered by Python & Tkinter")
 
