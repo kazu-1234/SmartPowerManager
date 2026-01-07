@@ -1,7 +1,7 @@
-# version: 1.4.0
+# version: 1.4.3
 # -*- coding: utf-8 -*-
 """
-SmartPowerManager v1.4.0
+SmartPowerManager v1.4.3
 PCのシャットダウンスケジュール管理アプリケーション
 
 機能:
