@@ -122,6 +122,7 @@ class ScheduleManager:
         self.weekly_schedules = []
         self.onetime_schedules = []
         self.debug_mode = False  # デフォルトはオフ
+        self.disclaimer_accepted = False # 免責同意フラグ
         self.load()
     
     def load(self):
@@ -144,6 +145,7 @@ class ScheduleManager:
                         self.weekly_schedules = data.get("weekly_schedules", [])
                     self.onetime_schedules = data.get("onetime", [])
                     self.debug_mode = data.get("debug_mode", True)
+                    self.disclaimer_accepted = data.get("disclaimer_accepted", False)
             except Exception as e:
                 print(f"設定の読み込みに失敗: {e}")
     
@@ -153,7 +155,8 @@ class ScheduleManager:
             "daily": self.daily_schedule,
             "weekly_schedules": self.weekly_schedules,
             "onetime": self.onetime_schedules,
-            "debug_mode": self.debug_mode
+            "debug_mode": self.debug_mode,
+            "disclaimer_accepted": self.disclaimer_accepted
         }
         try:
             with open(self.config_path, 'w', encoding='utf-8') as f:
@@ -307,6 +310,13 @@ class SmartPowerManagerApp(tk.Tk):
         self.resizable(False, False)  # サイズ変更禁止
         
         self.schedule_manager = ScheduleManager()
+        
+        # 免責事項チェック
+        self._check_disclaimer()
+        
+        # スタイル設定
+        self._setup_styles()
+        
         self.monitor_running = False
         self.monitor_thread = None
         
@@ -1078,6 +1088,25 @@ del "%~f0"
                           f"{APP_TITLE} v{APP_VERSION}\n\n"
                           "© 2026 SmartPowerManager Project\n"
                           "Powered by Python & Tkinter")
+
+    def _check_disclaimer(self):
+        """初回起動時に免責事項への同意を確認"""
+        if not self.schedule_manager.disclaimer_accepted:
+            msg = (
+                "【利用規約・免責事項】\n\n"
+                "本ソフトウェアの使用により生じた損害（データ消失、ハードウェア故障など）について、"
+                "開発者は一切の責任を負いません。\n\n"
+                "本ソフトウェアを使用するには、上記に同意する必要があります。\n"
+                "同意しますか？"
+            )
+            # yes/noで同意確認
+            if messagebox.askyesno("利用規約・免責事項の確認", msg, icon='warning'):
+                self.schedule_manager.disclaimer_accepted = True
+                self.schedule_manager.save()
+            else:
+                messagebox.showinfo("終了", "同意されなかったため、アプリケーションを終了します。")
+                self.root.destroy()
+                sys.exit()
 
     # =========================================================================
     # 監視スレッド
