@@ -54,7 +54,7 @@ except Exception:
 # =============================================================================
 # 定数定義
 # =============================================================================
-APP_VERSION = "1.4.2"
+APP_VERSION = "1.4.3"
 APP_TITLE = "SmartPowerManager"  # アプリ名はシンプルに
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedules.json")
 # GitHubのリポジトリ情報
@@ -1221,6 +1221,93 @@ del "%~f0"
     def _update_status(self):
         # ステータスバー削除のため空実装
         pass
+    
+    def _check_disclaimer(self):
+        """免責事項の確認（初回起動時）"""
+        if self.schedule_manager.disclaimer_accepted:
+            return
+
+        # ダイアログウィンドウ作成
+        dialog = tk.Toplevel(self)
+        dialog.title("利用規約・免責事項")
+        dialog.geometry("500x400")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        # 画面中央配置
+        dialog.update_idletasks()
+        try:
+            x = (dialog.winfo_screenwidth() - 500) // 2
+            y = (dialog.winfo_screenheight() - 400) // 2
+            dialog.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
+
+        # タイトル
+        try:
+            ttk.Label(dialog, text="利用規約・免責事項", font=("Meiryo UI", 12, "bold")).pack(pady=10)
+        except Exception:
+            # フォントがない場合
+            ttk.Label(dialog, text="利用規約・免責事項", font=("", 12, "bold")).pack(pady=10)
+
+        # テキストエリア
+        text_frame = ttk.Frame(dialog, padding=10)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, height=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        text_widget.config(yscrollcommand=scrollbar.set)
+
+        disclaimer_text = (
+            "本ソフトウェア（SmartPowerManager）を使用する前に、以下の免責事項をよくお読みください。\n\n"
+            "1. 本ソフトウェアの使用により生じた、いかなる損害（データ消失、システム不具合、利益損失など）についても、"
+            "開発者は一切の責任を負いません。\n\n"
+            "2. 本ソフトウェアは、ユーザーの設定したスケジュールに従ってPCをシャットダウンします。"
+            "未保存の作業がある場合、データが失われる可能性があります。\n\n"
+            "3. 自動更新機能はGitHubの公開リポジトリを利用しています。\n\n"
+            "本ソフトウェアを使用することで、上記に同意したものとみなされます。"
+        )
+        text_widget.insert(tk.END, disclaimer_text)
+        text_widget.config(state="disabled")
+
+        # 同意ボタン
+        btn_frame = ttk.Frame(dialog, padding=10)
+        btn_frame.pack(fill=tk.X)
+
+        def on_accept():
+            self.schedule_manager.disclaimer_accepted = True
+            self.schedule_manager.save()
+            dialog.destroy()
+
+        def on_reject():
+            sys.exit(0)
+
+        ttk.Button(btn_frame, text="同意して開始", command=on_accept).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(btn_frame, text="同意しない（終了）", command=on_reject).pack(side=tk.RIGHT, padx=5)
+
+        # ×ボタンでも終了
+        dialog.protocol("WM_DELETE_WINDOW", on_reject)
+        
+        # ダイアログが閉じるまで待機
+        self.wait_window(dialog)
+
+    def _setup_styles(self):
+        """スタイル設定"""
+        style = ttk.Style()
+        if "vista" in style.theme_names():
+            style.theme_use("vista")
+        
+        default_font = ("Meiryo UI", 9)
+        try:
+            style.configure(".", font=default_font)
+            style.configure("Treeview", font=default_font, rowheight=25)
+            style.configure("Treeview.Heading", font=("Meiryo UI", 9, "bold"))
+        except Exception:
+            pass
     
     def _on_close(self):
         self.monitor_running = False
