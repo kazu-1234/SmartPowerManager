@@ -60,8 +60,7 @@ CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schedule
 # GitHubのリポジトリ情報
 GITHUB_USER = "kazu-1234"
 GITHUB_REPO = "-SmartPowerManager"
-VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/version.txt"
-EXE_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/main/dist/SmartPowerManager.exe"
+GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
 
 WEEKDAYS_JP = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
 WEEKDAYS_SHORT = ["月", "火", "水", "木", "金", "土", "日"]
@@ -682,17 +681,51 @@ class SmartPowerManagerApp(tk.Tk):
     
     def _update_check_worker(self):
         try:
-            # version.txt を取得 (キャッシュ回避のためタイムスタンプを付与)
-            url = f"{VERSION_URL}?t={int(time.time())}"
-            with urllib.request.urlopen(url, timeout=10) as response:
-                latest_version = response.read().decode("utf-8").strip()
+            # GitHub APIから最新リリース情報を取得
+            req = urllib.request.Request(GITHUB_API_URL)
+            req.add_header('User-Agent', 'SmartPowerManager')  # GitHub APIにはUAが必須
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            
+            # タグ名（バージョン）取得 (例: "v1.4.1" -> "1.4.1")
+            tag_name = data.get("tag_name", "").lstrip("v")
+            if not tag_name:
+                raise Exception("バージョン情報を取得できませんでした")
+            
+            # アセット情報（EXEのURL）取得
+            assets = data.get("assets", [])
+            exe_asset = None
+            for asset in assets:
+                if asset["name"].endswith(".exe"):
+                    exe_asset = asset
+                    break
+            
+            if not exe_asset:
+                # EXEが見つからない場合はエラーではなく「最新」扱いにするか、警告
+                # ここではエラーとして扱う
+                raise Exception("リリースに実行ファイルが含まれていません")
+
+            self.latest_release_info = {
+                "version": tag_name,
+                "url": exe_asset["browser_download_url"],
+                "filename": exe_asset["name"]
+            }
             
             # バージョン比較
-            if latest_version > APP_VERSION:
-                self.after(0, lambda: self._confirm_update(latest_version))
+            if tag_name > APP_VERSION:
+                self.after(0, lambda: self._confirm_update(tag_name))
             else:
-                self.after(0, lambda: self._update_ui_no_update(latest_version))
+                self.after(0, lambda: self._update_ui_no_update(tag_name))
                 
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                # まだリリースがない場合など
+                self.after(0, lambda: self._update_ui_error("最新リリースが見つかりません"))
+            elif e.code == 403:
+                self.after(0, lambda: self._update_ui_error("APIレート制限です。しばらく待って再試行してください"))
+            else:
+                self.after(0, lambda: self._update_ui_error(f"HTTPエラー: {e.code}"))
         except Exception as e:
             self.after(0, lambda: self._update_ui_error(str(e)))
     
@@ -728,26 +761,38 @@ class SmartPowerManagerApp(tk.Tk):
         
     def _download_worker(self):
         try:
+            if not hasattr(self, 'latest_release_info'):
+                raise Exception("リリース情報がありません")
+
+            download_url = self.latest_release_info["url"]
+            file_name = self.latest_release_info["filename"]
+            
             # 実行ファイルのパスを取得
             current_exe = sys.executable
             download_dir = os.path.dirname(os.path.abspath(current_exe))
-            temp_exe = os.path.join(download_dir, "new_SmartPowerManager.exe")
+            # 一時ファイルとしてではなく、正しいファイル名で保存
+            target_path = os.path.join(download_dir, file_name)
             
+            # 既に同名ファイルがある場合は上書き（実行中でなければ）
+            # ただし自分自身と同じ名前なら一時名にする必要があるが、
+            # バージョンが変わればファイル名も変わるはずなので競合しないはず
+            if os.path.abspath(target_path) == os.path.abspath(current_exe):
+                target_path += ".new"
+
             # EXEをダウンロード
-            with urllib.request.urlopen(EXE_URL, timeout=60) as response:
-                with open(temp_exe, 'wb') as f:
+            with urllib.request.urlopen(download_url, timeout=60) as response:
+                with open(target_path, 'wb') as f:
                     f.write(response.read())
             
-            self.after(0, lambda: self._execute_update(temp_exe))
+            self.after(0, lambda: self._execute_update(target_path))
             
         except Exception as e:
             self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}"))
 
-    def _execute_update(self, temp_exe):
+    def _execute_update(self, new_exe_path):
         """バッチファイルを作成して更新を実行"""
         try:
             current_exe = sys.executable
-            # .pywで実行中は更新できない（開発中）ため警告
             if not current_exe.lower().endswith(".exe"):
                 self.progress.stop()
                 self.progress.pack_forget()
@@ -756,20 +801,31 @@ class SmartPowerManagerApp(tk.Tk):
                 self.update_status_var.set("ダウンロード完了（更新スキップ）")
                 return
 
-            exe_name = os.path.basename(current_exe)
+            current_exe_name = os.path.basename(current_exe)
+            new_exe_name = os.path.basename(new_exe_path)
             batch_file = os.path.join(os.path.dirname(current_exe), "_update.bat")
             
             # バッチファイル内容
-            # 1. 少し待機（アプリ終了待ち）
-            # 2. 古いEXEを削除
-            # 3. 新しいEXEをリネーム
-            # 4. アプリ起動
-            # 5. バッチ削除
+            # 1. 待機
+            # 2. 古いEXE削除
+            # 3. 新しいEXE起動
+            # 4. バッチ削除
+            # ※新ファイルが .new で終わる場合（同名更新）はリネームが必要だが、
+            #   基本は別名（バージョン違い）なのでリネーム不要
+            
+            rename_cmd = ""
+            if new_exe_path.endswith(".new"):
+                real_new_name = new_exe_name[:-4] # .new削除
+                rename_cmd = f'move /y "{new_exe_name}" "{real_new_name}"\nset "new_exe_name={real_new_name}"'
+                start_target = real_new_name
+            else:
+                start_target = new_exe_name
+                
             batch_content = f"""@echo off
 timeout /t 2 /nobreak >nul
-del "{exe_name}"
-move "new_SmartPowerManager.exe" "{exe_name}"
-start "" "{exe_name}"
+del "{current_exe_name}"
+{rename_cmd}
+start "" "{start_target}"
 del "%~f0"
 """
             with open(batch_file, "w", encoding="cp932") as f:
