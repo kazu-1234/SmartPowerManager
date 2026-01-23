@@ -10,3 +10,7 @@ build/
 *.spec
 
 dist/
+
+config.h
+SmartPowerManager_backup/
+*.exe
