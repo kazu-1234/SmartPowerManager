@@ -494,6 +494,8 @@ class SmartPowerManagerApp(tk.Tk):
         self._clean_manual_startup()
         # 古いアップデート残骸の削除
         self._clean_old_updates()
+        # レガシーな更新バッチが残っていたら削除（無限ループ防止）
+        self._cleanup_legacy_bat()
         
         # 既存のスタートアップ設定をチェックして更新
         self._ensure_startup_arg()
@@ -2095,16 +2097,32 @@ class SmartPowerManagerApp(tk.Tk):
         except: pass
 
     def _clean_old_updates(self):
-        """アップデート時に生成された一時ファイル（.delete_me）を削除"""
+        """アップデート時に生成された一時ファイルや古いEXEを削除"""
+        current_dir = os.path.dirname(os.path.abspath(sys.executable))
+        my_name = os.path.basename(sys.executable)
+        import glob
+        
+        # .delete_me の削除
+        for p in glob.glob(os.path.join(current_dir, "*.delete_me")):
+            try: os.remove(p)
+            except: pass
+            
+        # 古いバージョンのEXEを削除（自分以外）
+        # パターン: SmartPowerManager_v*.exe
+        for p in glob.glob(os.path.join(current_dir, "SmartPowerManager_v*.exe")):
+            try:
+                if os.path.basename(p).lower() != my_name.lower():
+                    # 実行中の自分自身でなければ削除トライ
+                    os.remove(p)
+            except: pass
+
+    def _cleanup_legacy_bat(self):
+        """v1.7.1以前が生成した _update.bat が残っていたら削除する"""
         try:
             current_dir = os.path.dirname(os.path.abspath(sys.executable))
-            import glob
-            for p in glob.glob(os.path.join(current_dir, "*.delete_me")):
-                try: 
-                    # 念のため、現在実行中でないか確認（自分自身でなければ消す）
-                    if str(os.getpid()) not in p: 
-                        os.remove(p)
-                except: pass
+            bat_path = os.path.join(current_dir, "_update.bat")
+            if os.path.exists(bat_path):
+                os.remove(bat_path)
         except: pass
 
     def _toggle_startup(self):
@@ -2154,6 +2172,14 @@ if __name__ == '__main__':
     try:
         with open("debug.log", "a") as f:
             f.write(f"[{datetime.now()}] Started: {sys.executable} Args: {sys.argv}\n")
+    except: pass
+
+    # ゾンビプロセス（古いバージョンの残り）を強制終了
+    # 自分以外の SmartPowerManager*.exe を全てkillする
+    try:
+        my_pid = os.getpid()
+        subprocess.run(f'taskkill /F /IM SmartPowerManager*.exe /FI "PID ne {my_pid}"', 
+                       shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except: pass
 
     app = SmartPowerManagerApp()
