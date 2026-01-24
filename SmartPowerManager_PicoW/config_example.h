@@ -36,7 +36,7 @@ const char *NTP_SERVER = "ntp.nict.jp";
 // v5.2.0: IPアドレスの値をここに設定
 // trueにするとIPアドレスを固定します。falseにするとDHCPから自動取得します。
 const bool USE_STATIC_IP = true;                    // ★★★ 静的IPを使う場合は true に変更 ★★★
-const byte STATIC_IP_BYTES[] = {192, 168, 10, 210}; // 固定IP
+const byte STATIC_IP_BYTES[] = {192, 168, 10, xxx}; // 固定IP
 const byte GATEWAY_BYTES[] = {192, 168, 10, 1};     // ゲートウェイ (ルーター)
 const byte SUBNET_BYTES[] = {255, 255, 255, 0};     // サブネットマスク
 const byte PRIMARY_DNS_BYTES[] = {8, 8, 8, 8};      // DNS (例: Google)
