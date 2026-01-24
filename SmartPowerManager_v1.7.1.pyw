@@ -1847,7 +1847,8 @@ class SmartPowerManagerApp(tk.Tk):
                 start_target = new_exe_name
                 
             batch_content = f"""@echo off
-timeout /t 2 /nobreak >nul
+taskkill /F /PID {os.getpid()} >nul 2>&1
+timeout /t 1 /nobreak >nul
 :LOOP_DEL
 if exist "{current_exe_name}" (
     del "{current_exe_name}"
