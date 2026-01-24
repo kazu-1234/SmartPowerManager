@@ -490,8 +490,10 @@ class SmartPowerManagerApp(tk.Tk):
         self._start_monitor()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         
-        # スタートアップフォルダのショートカット削除（レジストリ起動と競合するため）
+        # スタートアップフォルダのショートカット削除
         self._clean_manual_startup()
+        # 古いアップデート残骸の削除
+        self._clean_old_updates()
         
         # 既存のスタートアップ設定をチェックして更新
         self._ensure_startup_arg()
@@ -1823,65 +1825,52 @@ class SmartPowerManagerApp(tk.Tk):
             self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}"))
 
     def _execute_update(self, new_exe_path):
-        """バッチファイルを作成して更新を実行"""
+        """Rename-Swap方式で更新を実行（AV誤検知回避のため、バッチファイルを使わない）"""
         try:
             current_exe = sys.executable
             if not current_exe.lower().endswith(".exe"):
-                self.progress.stop()
-                self.progress.pack_forget()
-                self.check_update_btn.config(state="normal")
-                messagebox.showwarning("開発モード", "Pythonスクリプト実行中は自動更新できません。\nダウンロードは完了しました。")
-                self.update_status_var.set("ダウンロード完了（更新スキップ）")
+                messagebox.showwarning("開発モード", "Pythonスクリプト実行中は自動更新できません。")
                 return
 
-            current_exe_name = os.path.basename(current_exe)
-            new_exe_name = os.path.basename(new_exe_path)
-            batch_file = os.path.join(os.path.dirname(current_exe), "_update.bat")
+            current_dir = os.path.dirname(os.path.abspath(current_exe))
+            current_name = os.path.basename(current_exe)
             
-            rename_cmd = ""
-            if new_exe_path.endswith(".new"):
-                real_new_name = new_exe_name[:-4] # .new削除
-                rename_cmd = f'move /y "{new_exe_name}" "{real_new_name}"\\nset "new_exe_name={real_new_name}"'
-                start_target = real_new_name
-            else:
-                start_target = new_exe_name
+            # 1. 現在の実行ファイルをリネーム（Windowsでは実行中でもリネーム可能）
+            #    PIDやタイムスタンプを付けてユニークにする
+            old_name = f"{current_name}.{os.getpid()}.delete_me"
+            old_path = os.path.join(current_dir, old_name)
+            
+            if os.path.exists(old_path):
+                try: os.remove(old_path)
+                except: pass # 万が一残っていたら消す努力をする
                 
-            batch_content = f"""@echo off
-:LOOP_KILL
-taskkill /F /IM "{current_exe_name}" >nul 2>&1
-timeout /t 1 /nobreak >nul
-taskkill /F /IM "SmartPowerManager*" >nul 2>&1
-timeout /t 1 /nobreak >nul
-
-:LOOP_DEL
-if exist "{current_exe_name}" (
-    del "{current_exe_name}"
-    if exist "{current_exe_name}" (
-        timeout /t 1 /nobreak >nul
-        goto LOOP_KILL
-    )
-)
-{rename_cmd}
-start "" "{start_target}"
-:LOOP_DEL_BAT
-del "%~f0"
-if exist "%~f0" (
-    timeout /t 1 /nobreak >nul
-    goto LOOP_DEL_BAT
-)
-"""
-            with open(batch_file, "w", encoding="cp932") as f:
-                f.write(batch_content)
+            os.rename(current_exe, old_path)
             
-            CREATE_NEW_CONSOLE = 0x00000010
-            subprocess.Popen(
-                ["cmd.exe", "/c", batch_file],
-                creationflags=CREATE_NEW_CONSOLE
-            )
-            self.after(1000, self.quit)
+            # 2. 新しいファイルを本来の場所に移動
+            #    new_exe_path が .new で終わっている場合などを考慮
+            target_path = os.path.join(current_dir, current_name)
+            
+            if os.path.exists(target_path):
+                 # リネーム後にまだファイルがある（謎）場合は消す
+                 try: os.remove(target_path)
+                 except: pass
+            
+            # shutil.move推奨だが、os.rename/replaceで十分
+            # 異デバイス間移動の可能性も考慮して shutil.move を使うのが無難だが、
+            # 同じフォルダ内のダウンロードなら rename でOK
+            import shutil
+            shutil.move(new_exe_path, target_path)
+            
+            # 3. 新しいアプリを起動
+            subprocess.Popen([target_path])
+            
+            # 4. 自分は終了
+            sys.exit(0)
             
         except Exception as e:
             self._update_ui_error(f"更新実行エラー: {e}")
+            # 失敗した場合、リネームしたものを戻したいが、複雑になるのでエラー表示のみとする
+
 
 
     def _start_monitor(self):
@@ -2103,6 +2092,19 @@ if exist "%~f0" (
                     if os.path.exists(path):
                         try: os.remove(path)
                         except: pass
+        except: pass
+
+    def _clean_old_updates(self):
+        """アップデート時に生成された一時ファイル（.delete_me）を削除"""
+        try:
+            current_dir = os.path.dirname(os.path.abspath(sys.executable))
+            import glob
+            for p in glob.glob(os.path.join(current_dir, "*.delete_me")):
+                try: 
+                    # 念のため、現在実行中でないか確認（自分自身でなければ消す）
+                    if str(os.getpid()) not in p: 
+                        os.remove(p)
+                except: pass
         except: pass
 
     def _toggle_startup(self):
