@@ -17,7 +17,7 @@
  * - NTPClient
  * - WiFiClientSecure (RP2040 built-in)
  * 
- * v1.6.3
+ * v1.6.5
  * - Web UIからの毎日スケジュール設定に対応
  * - /update_schedule, /update_daily, /get_schedule APIのJSON対応
  */

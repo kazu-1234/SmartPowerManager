@@ -1749,7 +1749,7 @@ class SmartPowerManagerApp(tk.Tk):
         self.progress.stop()
         self.progress.pack_forget()
         self.check_update_btn.config(state="normal")
-        self.update_status_var.set(f"お使いのバージョン (v{APP_VERSION}) は最新です。")
+        self.update_status_var.set(f"お使いのバージョン ({APP_VERSION}) は最新です。")
         messagebox.showinfo("アップデート", "最新バージョンです。")
     
     def _update_ui_error(self, error_msg):
