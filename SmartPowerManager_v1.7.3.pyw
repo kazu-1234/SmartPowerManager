@@ -2120,23 +2120,13 @@ class SmartPowerManagerApp(tk.Tk):
             pass
 
     def _clean_old_updates(self):
-        """アップデート時に生成された一時ファイルや古いEXEを削除"""
+        """アップデート時に生成された一時ファイルを削除（exeの自動削除は無効化）"""
         current_dir = os.path.dirname(os.path.abspath(sys.executable))
-        my_name = os.path.basename(sys.executable)
         import glob
         
-        # .delete_me の削除
+        # .delete_me の削除のみ実施
         for p in glob.glob(os.path.join(current_dir, "*.delete_me")):
             try: os.remove(p)
-            except: pass
-            
-        # 古いバージョンのEXEを削除（自分以外）
-        # パターン: SmartPowerManager_v*.exe
-        for p in glob.glob(os.path.join(current_dir, "SmartPowerManager_v*.exe")):
-            try:
-                if os.path.basename(p).lower() != my_name.lower():
-                    # 実行中の自分自身でなければ削除トライ
-                    os.remove(p)
             except: pass
 
     def _cleanup_legacy_bat(self):
