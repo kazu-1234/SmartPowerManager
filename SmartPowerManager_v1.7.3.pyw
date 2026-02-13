@@ -2098,32 +2098,26 @@ class SmartPowerManagerApp(tk.Tk):
         sys.exit(0)
 
     def _check_startup_registry(self):
+        """スタートアップフォルダにショートカットがあるか確認"""
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_READ)
-            winreg.QueryValueEx(key, "SmartPowerManager")
-            winreg.CloseKey(key)
-            return True
+            startup_path = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\Startup')
+            shortcut_path = os.path.join(startup_path, "SmartPowerManager.lnk")
+            return os.path.exists(shortcut_path)
         except:
             return False
 
     def _clean_manual_startup(self):
-        """スタートアップフォルダにあるショートカットを削除する（レジストリ起動を優先）"""
+        """旧レジストリ設定をクリーンアップ（互換性のため）"""
         try:
-            startup_path = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\Startup')
-            # ショートカット名のパターンをいくつか想定
-            targets = ["SmartPowerManager.lnk", "SmartPowerManager - Shortcut.lnk", "SmartPowerManager_v*.lnk"]
-            for t in targets:
-                path = os.path.join(startup_path, t)
-                if "*" in t:
-                    import glob
-                    for p in glob.glob(path):
-                        try: os.remove(p)
-                        except: pass
-                else:
-                    if os.path.exists(path):
-                        try: os.remove(path)
-                        except: pass
-        except: pass
+            # 旧バージョンのレジストリ設定を削除
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_WRITE)
+            try:
+                winreg.DeleteValue(key, "SmartPowerManager")
+            except:
+                pass
+            winreg.CloseKey(key)
+        except:
+            pass
 
     def _clean_old_updates(self):
         """アップデート時に生成された一時ファイルや古いEXEを削除"""
@@ -2155,28 +2149,31 @@ class SmartPowerManagerApp(tk.Tk):
         except: pass
 
     def _toggle_startup(self):
-        app_path = sys.executable
-        # If running from source (.pyw), sys.executable is pythonw.exe.
-        # We generally want to register the .pyw file itself if source, or the .exe if frozen.
-        if not getattr(sys, 'frozen', False):
-             # Development mode: Register pythonw.exe "script_path"
-             script_path = os.path.abspath(__file__)
-             cmd = f'"{app_path}" "{script_path}" --startup'
-        else:
-             # Frozen mode: Register exe path
-             cmd = f'"{app_path}" --startup'
-
+        """スタートアップフォルダにショートカットを作成/削除"""
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_WRITE)
+            startup_path = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\Startup')
+            shortcut_path = os.path.join(startup_path, "SmartPowerManager.lnk")
+            
             if self.startup_registry_var.get():
-                winreg.SetValueEx(key, "SmartPowerManager", 0, winreg.REG_SZ, cmd)
+                # ショートカットを作成
+                app_path = sys.executable
+                if not getattr(sys, 'frozen', False):
+                    script_path = os.path.abspath(__file__)
+                    target = f'"{app_path}" "{script_path}"'
+                else:
+                    target = f'"{app_path}"'
+                
+                # PowerShellでショートカット作成
+                ps_script = f"""$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('{shortcut_path}'); $Shortcut.TargetPath = '{app_path}'; $Shortcut.Save()"""
+                subprocess.run(["powershell", "-Command", ps_script], 
+                             creationflags=subprocess.CREATE_NO_WINDOW,
+                             capture_output=True)
             else:
-                try: winreg.DeleteValue(key, "SmartPowerManager")
-                except: pass
-            winreg.CloseKey(key)
-            winreg.CloseKey(key)
+                # ショートカットを削除
+                if os.path.exists(shortcut_path):
+                    os.remove(shortcut_path)
         except Exception as e:
-            messagebox.showerror("エラー", f"レジストリ操作に失敗しました:\n{e}")
+            messagebox.showerror("エラー", f"スタートアップ設定に失敗しました:\n{e}")
 
     def _ensure_startup_arg(self):
         """スタートアップ登録を修復・更新する（毎回実行してパスズレなどを直す）"""
