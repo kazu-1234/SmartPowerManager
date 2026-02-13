@@ -30,6 +30,7 @@ import threading
 import time
 import urllib.request
 import urllib.error
+import ssl
 import winreg
 import pystray
 from PIL import Image, ImageDraw
@@ -1736,11 +1737,23 @@ class SmartPowerManagerApp(tk.Tk):
     
     def _update_check_worker(self):
         try:
+            # SSL証明書検証のコンテキストを設定（exeでの問題回避）
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = True
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+            
+            # プロキシ設定を考慮したOpenerを作成
+            proxy_handler = urllib.request.ProxyHandler({})
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPSHandler(context=ssl_context),
+                proxy_handler
+            )
+            
             # GitHub APIから最新リリース情報を取得
             req = urllib.request.Request(GITHUB_API_URL)
-            req.add_header('User-Agent', 'SmartPowerManager')  # GitHub APIにはUAが必須
+            req.add_header('User-Agent', 'SmartPowerManager/1.7.3')  # GitHub APIにはUAが必須
             
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with opener.open(req, timeout=10) as response:
                 data = json.loads(response.read().decode("utf-8"))
             
             # タグ名（バージョン）取得
@@ -1848,7 +1861,21 @@ class SmartPowerManagerApp(tk.Tk):
             if os.path.abspath(target_path) == os.path.abspath(current_exe):
                 target_path += ".new"
 
-            with urllib.request.urlopen(download_url, timeout=60) as response:
+            # SSL証明書検証のコンテキストを設定
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = True
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+            
+            proxy_handler = urllib.request.ProxyHandler({})
+            opener = urllib.request.build_opener(
+                urllib.request.HTTPSHandler(context=ssl_context),
+                proxy_handler
+            )
+            
+            req = urllib.request.Request(download_url)
+            req.add_header('User-Agent', 'SmartPowerManager/1.7.3')
+            
+            with opener.open(req, timeout=60) as response:
                 block_size = 8192
                 with open(target_path, 'wb') as f:
                     while True:
