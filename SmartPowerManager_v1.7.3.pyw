@@ -31,6 +31,7 @@ import time
 import urllib.request
 import urllib.error
 import ssl
+import webbrowser
 import winreg
 import pystray
 from PIL import Image, ImageDraw
@@ -1345,11 +1346,10 @@ class SmartPowerManagerApp(tk.Tk):
         frame.pack(fill=tk.BOTH, expand=True)
         ttk.Label(frame, text="📦 アップデート", font=("Meiryo UI", 14, "bold")).pack(pady=(0, 20))
         ttk.Label(frame, text=f"現在のバージョン: {APP_VERSION}", font=("Meiryo UI", 11)).pack(pady=5)
-        self.update_status_var = tk.StringVar(value="ボタンを押して更新を確認してください")
+        self.update_status_var = tk.StringVar(value="ボタンを押して最新リリースを確認")
         ttk.Label(frame, textvariable=self.update_status_var, foreground="blue", padding=10, font=("Meiryo UI", 11)).pack(pady=10)
-        self.check_update_btn = ttk.Button(frame, text="アップデートを確認", command=self._check_for_updates)
+        self.check_update_btn = ttk.Button(frame, text="GitHubリリースページを開く", command=self._check_for_updates)
         self.check_update_btn.pack(pady=10)
-        self.progress = ttk.Progressbar(frame, mode="indeterminate", length=300)
         
         # 免責事項 (Moved from Settings Tab in v1.6.2)
         disclaimer_frame = ttk.LabelFrame(frame, text="免責事項", padding="10")
@@ -1726,14 +1726,13 @@ class SmartPowerManagerApp(tk.Tk):
         self._log_all(f"デバッグモード: {self.schedule_manager.debug_mode}")
 
     def _check_for_updates(self):
-        """アップデートを確認する"""
-        self.check_update_btn.config(state="disabled")
-        self.update_status_var.set("更新を確認中...")
-        self.progress.pack(pady=10)
-        self.progress.start()
-        
-        # 別スレッドで確認
-        threading.Thread(target=self._update_check_worker, daemon=True).start()
+        """アップデートを確認する（GitHubリリースページをブラウザで開く）"""
+        release_url = f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
+        try:
+            webbrowser.open(release_url)
+            self.update_status_var.set("ブラウザで最新リリースを表示しました")
+        except Exception as e:
+            messagebox.showerror("エラー", f"ブラウザを開けませんでした: {e}")
     
     def _update_check_worker(self):
         try:
