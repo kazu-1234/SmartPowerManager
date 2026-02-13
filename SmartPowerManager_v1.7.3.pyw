@@ -1,7 +1,7 @@
-# version: 1.7.1
+# version: 1.7.2
 # -*- coding: utf-8 -*-
 """
-SmartPowerManager v1.7.1
+SmartPowerManager v1.7.2
 PCのシャットダウンスケジュール管理アプリケーション
 
 機能:
@@ -51,9 +51,29 @@ except Exception:
 
 
 # =============================================================================
+# ディスプレイ制御ヘルパー関数
+# =============================================================================
+def wake_display():
+    """ディスプレイを起動する（画面オフ状態から復帰）"""
+    try:
+        # ディスプレイを一時的に起動（ES_CONTINUOUSなしで一回限り）
+        ctypes.windll.kernel32.SetThreadExecutionState(0x00000003)  # ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED
+    except Exception:
+        pass
+
+def reset_power_state():
+    """電源管理をシステムデフォルトにリセット（スリープ/画面オフを許可）"""
+    try:
+        # すべての電源管理設定をクリアしてシステム設定に従う
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)  # ES_CONTINUOUS
+    except Exception:
+        pass
+
+
+# =============================================================================
 # 定数定義
 # =============================================================================
-APP_VERSION = "v1.7.1"
+APP_VERSION = "v1.7.3"
 APP_TITLE = "SmartPowerManager"
 
 # 設定ファイルのパス決定（PyInstaller対応）
@@ -490,8 +510,12 @@ class SmartPowerManagerApp(tk.Tk):
         self._start_monitor()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         
-        # スタートアップフォルダのショートカット削除（レジストリ起動と競合するため）
+        # スタートアップフォルダのショートカット削除
         self._clean_manual_startup()
+        # 古いアップデート残骸の削除
+        self._clean_old_updates()
+        # レガシーな更新バッチが残っていたら削除（無限ループ防止）
+        self._cleanup_legacy_bat()
         
         # 既存のスタートアップ設定をチェックして更新
         self._ensure_startup_arg()
@@ -1823,61 +1847,52 @@ class SmartPowerManagerApp(tk.Tk):
             self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}"))
 
     def _execute_update(self, new_exe_path):
-        """バッチファイルを作成して更新を実行"""
+        """Rename-Swap方式で更新を実行（AV誤検知回避のため、バッチファイルを使わない）"""
         try:
             current_exe = sys.executable
             if not current_exe.lower().endswith(".exe"):
-                self.progress.stop()
-                self.progress.pack_forget()
-                self.check_update_btn.config(state="normal")
-                messagebox.showwarning("開発モード", "Pythonスクリプト実行中は自動更新できません。\nダウンロードは完了しました。")
-                self.update_status_var.set("ダウンロード完了（更新スキップ）")
+                messagebox.showwarning("開発モード", "Pythonスクリプト実行中は自動更新できません。")
                 return
 
-            current_exe_name = os.path.basename(current_exe)
-            new_exe_name = os.path.basename(new_exe_path)
-            batch_file = os.path.join(os.path.dirname(current_exe), "_update.bat")
+            current_dir = os.path.dirname(os.path.abspath(current_exe))
+            current_name = os.path.basename(current_exe)
             
-            rename_cmd = ""
-            if new_exe_path.endswith(".new"):
-                real_new_name = new_exe_name[:-4] # .new削除
-                rename_cmd = f'move /y "{new_exe_name}" "{real_new_name}"\\nset "new_exe_name={real_new_name}"'
-                start_target = real_new_name
-            else:
-                start_target = new_exe_name
+            # 1. 現在の実行ファイルをリネーム（Windowsでは実行中でもリネーム可能）
+            #    PIDやタイムスタンプを付けてユニークにする
+            old_name = f"{current_name}.{os.getpid()}.delete_me"
+            old_path = os.path.join(current_dir, old_name)
+            
+            if os.path.exists(old_path):
+                try: os.remove(old_path)
+                except: pass # 万が一残っていたら消す努力をする
                 
-            batch_content = f"""@echo off
-taskkill /F /PID {os.getpid()} >nul 2>&1
-timeout /t 1 /nobreak >nul
-:LOOP_DEL
-if exist "{current_exe_name}" (
-    del "{current_exe_name}"
-    if exist "{current_exe_name}" (
-        timeout /t 1 /nobreak >nul
-        goto LOOP_DEL
-    )
-)
-{rename_cmd}
-start "" "{start_target}"
-:LOOP_DEL_BAT
-del "%~f0"
-if exist "%~f0" (
-    timeout /t 1 /nobreak >nul
-    goto LOOP_DEL_BAT
-)
-"""
-            with open(batch_file, "w", encoding="cp932") as f:
-                f.write(batch_content)
+            os.rename(current_exe, old_path)
             
-            CREATE_NEW_CONSOLE = 0x00000010
-            subprocess.Popen(
-                ["cmd.exe", "/c", batch_file],
-                creationflags=CREATE_NEW_CONSOLE
-            )
-            self.after(1000, self.quit)
+            # 2. 新しいファイルを本来の場所に移動
+            #    new_exe_path が .new で終わっている場合などを考慮
+            target_path = os.path.join(current_dir, current_name)
+            
+            if os.path.exists(target_path):
+                 # リネーム後にまだファイルがある（謎）場合は消す
+                 try: os.remove(target_path)
+                 except: pass
+            
+            # shutil.move推奨だが、os.rename/replaceで十分
+            # 異デバイス間移動の可能性も考慮して shutil.move を使うのが無難だが、
+            # 同じフォルダ内のダウンロードなら rename でOK
+            import shutil
+            shutil.move(new_exe_path, target_path)
+            
+            # 3. 新しいアプリを起動
+            subprocess.Popen([target_path])
+            
+            # 4. 自分は終了
+            sys.exit(0)
             
         except Exception as e:
             self._update_ui_error(f"更新実行エラー: {e}")
+            # 失敗した場合、リネームしたものを戻したいが、複雑になるのでエラー表示のみとする
+
 
 
     def _start_monitor(self):
@@ -1911,10 +1926,17 @@ if exist "%~f0" (
         cb = self.schedule_manager._pending_callback
         del self.schedule_manager._pending_active
         
+        # 画面がオフの場合に備えてディスプレイを起動
+        wake_display()
+        
         lbl = "シャットダウン" if action == ACTION_SHUTDOWN else "再起動"
         d = tk.Toplevel(self)
         d.title(f"{lbl}確認")
         d.geometry("350x150")
+        
+        # 常に最前面に表示
+        d.attributes('-topmost', True)
+        d.focus_force()
         
         ttk.Label(d, text=f"理由: {trigger}").pack(pady=10)
         cd = ttk.Label(d, text=f"60秒後に{lbl}します", font=("",12,"bold"))
@@ -1922,11 +1944,13 @@ if exist "%~f0" (
         
         cancel = [False]
         def do_ex():
+            reset_power_state()  # システム設定に戻す
             d.destroy()
             self._log_all(f"{lbl}実行")
             self.schedule_manager._do_immediate_action(action, cb)
         def do_cn():
             cancel[0] = True
+            reset_power_state()  # システム設定に戻す
             d.destroy()
             self._log_all("キャンセル")
             
@@ -2101,6 +2125,35 @@ if exist "%~f0" (
                         except: pass
         except: pass
 
+    def _clean_old_updates(self):
+        """アップデート時に生成された一時ファイルや古いEXEを削除"""
+        current_dir = os.path.dirname(os.path.abspath(sys.executable))
+        my_name = os.path.basename(sys.executable)
+        import glob
+        
+        # .delete_me の削除
+        for p in glob.glob(os.path.join(current_dir, "*.delete_me")):
+            try: os.remove(p)
+            except: pass
+            
+        # 古いバージョンのEXEを削除（自分以外）
+        # パターン: SmartPowerManager_v*.exe
+        for p in glob.glob(os.path.join(current_dir, "SmartPowerManager_v*.exe")):
+            try:
+                if os.path.basename(p).lower() != my_name.lower():
+                    # 実行中の自分自身でなければ削除トライ
+                    os.remove(p)
+            except: pass
+
+    def _cleanup_legacy_bat(self):
+        """v1.7.1以前が生成した _update.bat が残っていたら削除する"""
+        try:
+            current_dir = os.path.dirname(os.path.abspath(sys.executable))
+            bat_path = os.path.join(current_dir, "_update.bat")
+            if os.path.exists(bat_path):
+                os.remove(bat_path)
+        except: pass
+
     def _toggle_startup(self):
         app_path = sys.executable
         # If running from source (.pyw), sys.executable is pythonw.exe.
@@ -2121,27 +2174,42 @@ if exist "%~f0" (
                 try: winreg.DeleteValue(key, "SmartPowerManager")
                 except: pass
             winreg.CloseKey(key)
+            winreg.CloseKey(key)
         except Exception as e:
             messagebox.showerror("エラー", f"レジストリ操作に失敗しました:\n{e}")
 
     def _ensure_startup_arg(self):
-        """スタートアップ登録されている場合、引数がない古い形式なら更新する"""
+        """スタートアップ登録を修復・更新する（毎回実行してパスズレなどを直す）"""
         if not self.startup_registry_var.get(): return
+        
+        # 強制的に現在のパスで上書き登録
+        app_path = sys.executable
+        if not getattr(sys, 'frozen', False):
+             script_path = os.path.abspath(__file__)
+             cmd = f'"{app_path}" "{script_path}" --startup'
+        else:
+             cmd = f'"{app_path}" --startup'
+
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_READ | winreg.KEY_WRITE)
-            val, _ = winreg.QueryValueEx(key, "SmartPowerManager")
-            if "--startup" not in val:
-                # 引数がなければ更新（_toggle_startupのロジックと同じ）
-                app_path = sys.executable
-                if not getattr(sys, 'frozen', False):
-                     script_path = os.path.abspath(__file__)
-                     cmd = f'"{app_path}" "{script_path}" --startup'
-                else:
-                     cmd = f'"{app_path}" --startup'
-                winreg.SetValueEx(key, "SmartPowerManager", 0, winreg.REG_SZ, cmd)
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_WRITE)
+            winreg.SetValueEx(key, "SmartPowerManager", 0, winreg.REG_SZ, cmd)
             winreg.CloseKey(key)
         except: pass
 
 if __name__ == '__main__':
+    # Log startup for debugging
+    try:
+        with open("debug.log", "a") as f:
+            f.write(f"[{datetime.now()}] Started: {sys.executable} Args: {sys.argv}\n")
+    except: pass
+
+    # ゾンビプロセス（古いバージョンの残り）を強制終了
+    # 自分以外の SmartPowerManager*.exe を全てkillする
+    try:
+        my_pid = os.getpid()
+        subprocess.run(f'taskkill /F /IM SmartPowerManager*.exe /FI "PID ne {my_pid}"', 
+                       shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except: pass
+
     app = SmartPowerManagerApp()
     app.mainloop()

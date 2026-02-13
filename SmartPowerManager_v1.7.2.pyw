@@ -51,9 +51,29 @@ except Exception:
 
 
 # =============================================================================
+# ディスプレイ制御ヘルパー関数
+# =============================================================================
+def wake_display():
+    """ディスプレイを起動する（画面オフ状態から復帰）"""
+    try:
+        # ディスプレイを一時的に起動（ES_CONTINUOUSなしで一回限り）
+        ctypes.windll.kernel32.SetThreadExecutionState(0x00000003)  # ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED
+    except Exception:
+        pass
+
+def reset_power_state():
+    """電源管理をシステムデフォルトにリセット（スリープ/画面オフを許可）"""
+    try:
+        # すべての電源管理設定をクリアしてシステム設定に従う
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)  # ES_CONTINUOUS
+    except Exception:
+        pass
+
+
+# =============================================================================
 # 定数定義
 # =============================================================================
-APP_VERSION = "v1.7.2"
+APP_VERSION = "v1.7.3"
 APP_TITLE = "SmartPowerManager"
 
 # 設定ファイルのパス決定（PyInstaller対応）
@@ -1906,10 +1926,17 @@ class SmartPowerManagerApp(tk.Tk):
         cb = self.schedule_manager._pending_callback
         del self.schedule_manager._pending_active
         
+        # 画面がオフの場合に備えてディスプレイを起動
+        wake_display()
+        
         lbl = "シャットダウン" if action == ACTION_SHUTDOWN else "再起動"
         d = tk.Toplevel(self)
         d.title(f"{lbl}確認")
         d.geometry("350x150")
+        
+        # 常に最前面に表示
+        d.attributes('-topmost', True)
+        d.focus_force()
         
         ttk.Label(d, text=f"理由: {trigger}").pack(pady=10)
         cd = ttk.Label(d, text=f"60秒後に{lbl}します", font=("",12,"bold"))
@@ -1917,11 +1944,13 @@ class SmartPowerManagerApp(tk.Tk):
         
         cancel = [False]
         def do_ex():
+            reset_power_state()  # システム設定に戻す
             d.destroy()
             self._log_all(f"{lbl}実行")
             self.schedule_manager._do_immediate_action(action, cb)
         def do_cn():
             cancel[0] = True
+            reset_power_state()  # システム設定に戻す
             d.destroy()
             self._log_all("キャンセル")
             
