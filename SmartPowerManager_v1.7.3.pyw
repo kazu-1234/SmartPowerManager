@@ -1778,14 +1778,24 @@ class SmartPowerManagerApp(tk.Tk):
                 self.after(0, lambda: self._update_ui_error(
                     f"リポジトリまたは最新リリースが見つかりません。\n"
                     f"({GITHUB_USER}/{GITHUB_REPO})\n"
-                    "インターネット接続やリポジトリ設定を確認してください。"
+                    "インターネット接続やリポジトリ設定を確認してください。",
+                    is_network_error=False
                 ))
             elif e.code == 403:
-                self.after(0, lambda: self._update_ui_error("APIレート制限です。しばらく待って再試行してください"))
+                self.after(0, lambda: self._update_ui_error("APIレート制限です。しばらく待って再試行してください", is_network_error=False))
             else:
-                self.after(0, lambda: self._update_ui_error(f"HTTPエラー: {e.code}"))
+                self.after(0, lambda: self._update_ui_error(f"HTTPエラー: {e.code}", is_network_error=False))
+        except urllib.error.URLError as e:
+            # ネットワークエラー（ファイアウォール、接続エラーなど）
+            error_msg = str(e.reason) if hasattr(e, 'reason') else str(e)
+            self.after(0, lambda: self._update_ui_error(
+                f"ネットワーク接続エラーが発生しました。\n\n"
+                f"インターネット接続、ファイアウォール、セキュリティソフトの設定を確認してください。\n\n"
+                f"詳細: {error_msg}",
+                is_network_error=True
+            ))
         except Exception as e:
-            self.after(0, lambda: self._update_ui_error(str(e)))
+            self.after(0, lambda: self._update_ui_error(str(e), is_network_error=False))
     
     def _update_ui_no_update(self, version):
         self.progress.stop()
@@ -1794,12 +1804,18 @@ class SmartPowerManagerApp(tk.Tk):
         self.update_status_var.set(f"お使いのバージョン ({APP_VERSION}) は最新です。")
         messagebox.showinfo("アップデート", "最新バージョンです。")
     
-    def _update_ui_error(self, error_msg):
+    def _update_ui_error(self, error_msg, is_network_error=False):
         self.progress.stop()
         self.progress.pack_forget()
         self.check_update_btn.config(state="normal")
         self.update_status_var.set("エラーが発生しました")
-        messagebox.showerror("エラー", f"更新確認エラー: {error_msg}")
+        
+        if is_network_error:
+            # ネットワークエラーは警告レベル（黄色いアイコン）
+            messagebox.showwarning("更新確認", error_msg)
+        else:
+            # その他のエラーはエラーダイアログ
+            messagebox.showerror("エラー", f"更新確認エラー: {error_msg}")
 
     def _confirm_update(self, latest_version):
         self.progress.stop()
@@ -1843,8 +1859,16 @@ class SmartPowerManagerApp(tk.Tk):
             
             self.after(0, lambda: self._execute_update(target_path))
             
+        except urllib.error.URLError as e:
+            error_msg = str(e.reason) if hasattr(e, 'reason') else str(e)
+            self.after(0, lambda: self._update_ui_error(
+                f"ダウンロード失敗（ネットワークエラー）:\n\n"
+                f"ファイアウォールやセキュリティソフトの設定を確認してください。\n\n"
+                f"詳細: {error_msg}",
+                is_network_error=True
+            ))
         except Exception as e:
-            self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}"))
+            self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}", is_network_error=False))
 
     def _execute_update(self, new_exe_path):
         """Rename-Swap方式で更新を実行（AV誤検知回避のため、バッチファイルを使わない）"""
