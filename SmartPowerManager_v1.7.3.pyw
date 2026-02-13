@@ -30,8 +30,6 @@ import threading
 import time
 import urllib.request
 import urllib.error
-import ssl
-import webbrowser
 import winreg
 import pystray
 from PIL import Image, ImageDraw
@@ -1346,10 +1344,11 @@ class SmartPowerManagerApp(tk.Tk):
         frame.pack(fill=tk.BOTH, expand=True)
         ttk.Label(frame, text="📦 アップデート", font=("Meiryo UI", 14, "bold")).pack(pady=(0, 20))
         ttk.Label(frame, text=f"現在のバージョン: {APP_VERSION}", font=("Meiryo UI", 11)).pack(pady=5)
-        self.update_status_var = tk.StringVar(value="ボタンを押して最新リリースを確認")
+        self.update_status_var = tk.StringVar(value="ボタンを押して更新を確認してください")
         ttk.Label(frame, textvariable=self.update_status_var, foreground="blue", padding=10, font=("Meiryo UI", 11)).pack(pady=10)
-        self.check_update_btn = ttk.Button(frame, text="GitHubリリースページを開く", command=self._check_for_updates)
+        self.check_update_btn = ttk.Button(frame, text="アップデートを確認", command=self._check_for_updates)
         self.check_update_btn.pack(pady=10)
+        self.progress = ttk.Progressbar(frame, mode="indeterminate", length=300)
         
         # 免責事項 (Moved from Settings Tab in v1.6.2)
         disclaimer_frame = ttk.LabelFrame(frame, text="免責事項", padding="10")
@@ -1726,33 +1725,22 @@ class SmartPowerManagerApp(tk.Tk):
         self._log_all(f"デバッグモード: {self.schedule_manager.debug_mode}")
 
     def _check_for_updates(self):
-        """アップデートを確認する（GitHubリリースページをブラウザで開く）"""
-        release_url = f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
-        try:
-            webbrowser.open(release_url)
-            self.update_status_var.set("ブラウザで最新リリースを表示しました")
-        except Exception as e:
-            messagebox.showerror("エラー", f"ブラウザを開けませんでした: {e}")
+        """アップデートを確認する"""
+        self.check_update_btn.config(state="disabled")
+        self.update_status_var.set("更新を確認中...")
+        self.progress.pack(pady=10)
+        self.progress.start()
+        
+        # 別スレッドで確認
+        threading.Thread(target=self._update_check_worker, daemon=True).start()
     
     def _update_check_worker(self):
         try:
-            # SSL証明書検証のコンテキストを設定（exeでの問題回避）
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = True
-            ssl_context.verify_mode = ssl.CERT_REQUIRED
-            
-            # プロキシ設定を考慮したOpenerを作成
-            proxy_handler = urllib.request.ProxyHandler({})
-            opener = urllib.request.build_opener(
-                urllib.request.HTTPSHandler(context=ssl_context),
-                proxy_handler
-            )
-            
             # GitHub APIから最新リリース情報を取得
             req = urllib.request.Request(GITHUB_API_URL)
-            req.add_header('User-Agent', 'SmartPowerManager/1.7.3')  # GitHub APIにはUAが必須
+            req.add_header('User-Agent', 'SmartPowerManager')  # GitHub APIにはUAが必須
             
-            with opener.open(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read().decode("utf-8"))
             
             # タグ名（バージョン）取得
@@ -1790,24 +1778,14 @@ class SmartPowerManagerApp(tk.Tk):
                 self.after(0, lambda: self._update_ui_error(
                     f"リポジトリまたは最新リリースが見つかりません。\n"
                     f"({GITHUB_USER}/{GITHUB_REPO})\n"
-                    "インターネット接続やリポジトリ設定を確認してください。",
-                    is_network_error=False
+                    "インターネット接続やリポジトリ設定を確認してください。"
                 ))
             elif e.code == 403:
-                self.after(0, lambda: self._update_ui_error("APIレート制限です。しばらく待って再試行してください", is_network_error=False))
+                self.after(0, lambda: self._update_ui_error("APIレート制限です。しばらく待って再試行してください"))
             else:
-                self.after(0, lambda: self._update_ui_error(f"HTTPエラー: {e.code}", is_network_error=False))
-        except urllib.error.URLError as e:
-            # ネットワークエラー（ファイアウォール、接続エラーなど）
-            error_msg = str(e.reason) if hasattr(e, 'reason') else str(e)
-            self.after(0, lambda: self._update_ui_error(
-                f"ネットワーク接続エラーが発生しました。\n\n"
-                f"インターネット接続、ファイアウォール、セキュリティソフトの設定を確認してください。\n\n"
-                f"詳細: {error_msg}",
-                is_network_error=True
-            ))
+                self.after(0, lambda: self._update_ui_error(f"HTTPエラー: {e.code}"))
         except Exception as e:
-            self.after(0, lambda: self._update_ui_error(str(e), is_network_error=False))
+            self.after(0, lambda: self._update_ui_error(str(e)))
     
     def _update_ui_no_update(self, version):
         self.progress.stop()
@@ -1816,18 +1794,12 @@ class SmartPowerManagerApp(tk.Tk):
         self.update_status_var.set(f"お使いのバージョン ({APP_VERSION}) は最新です。")
         messagebox.showinfo("アップデート", "最新バージョンです。")
     
-    def _update_ui_error(self, error_msg, is_network_error=False):
+    def _update_ui_error(self, error_msg):
         self.progress.stop()
         self.progress.pack_forget()
         self.check_update_btn.config(state="normal")
         self.update_status_var.set("エラーが発生しました")
-        
-        if is_network_error:
-            # ネットワークエラーは警告レベル（黄色いアイコン）
-            messagebox.showwarning("更新確認", error_msg)
-        else:
-            # その他のエラーはエラーダイアログ
-            messagebox.showerror("エラー", f"更新確認エラー: {error_msg}")
+        messagebox.showerror("エラー", f"更新確認エラー: {error_msg}")
 
     def _confirm_update(self, latest_version):
         self.progress.stop()
@@ -1860,21 +1832,7 @@ class SmartPowerManagerApp(tk.Tk):
             if os.path.abspath(target_path) == os.path.abspath(current_exe):
                 target_path += ".new"
 
-            # SSL証明書検証のコンテキストを設定
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = True
-            ssl_context.verify_mode = ssl.CERT_REQUIRED
-            
-            proxy_handler = urllib.request.ProxyHandler({})
-            opener = urllib.request.build_opener(
-                urllib.request.HTTPSHandler(context=ssl_context),
-                proxy_handler
-            )
-            
-            req = urllib.request.Request(download_url)
-            req.add_header('User-Agent', 'SmartPowerManager/1.7.3')
-            
-            with opener.open(req, timeout=60) as response:
+            with urllib.request.urlopen(download_url, timeout=60) as response:
                 block_size = 8192
                 with open(target_path, 'wb') as f:
                     while True:
@@ -1885,16 +1843,8 @@ class SmartPowerManagerApp(tk.Tk):
             
             self.after(0, lambda: self._execute_update(target_path))
             
-        except urllib.error.URLError as e:
-            error_msg = str(e.reason) if hasattr(e, 'reason') else str(e)
-            self.after(0, lambda: self._update_ui_error(
-                f"ダウンロード失敗（ネットワークエラー）:\n\n"
-                f"ファイアウォールやセキュリティソフトの設定を確認してください。\n\n"
-                f"詳細: {error_msg}",
-                is_network_error=True
-            ))
         except Exception as e:
-            self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}", is_network_error=False))
+            self.after(0, lambda: self._update_ui_error(f"ダウンロード失敗: {e}"))
 
     def _execute_update(self, new_exe_path):
         """Rename-Swap方式で更新を実行（AV誤検知回避のため、バッチファイルを使わない）"""
