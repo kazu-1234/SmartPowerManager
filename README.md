@@ -1,6 +1,6 @@
 # SmartPowerManager
 
-<img src="https://github.com/user-attachments/assets/fd9ff105-f864-4f9e-a028-9bc6da35100c" alt="メイン画面" width="500" />
+<img src="https://github.com/user-attachments/assets/fd9ff105-f864-4f9e-a028-9bc6da35100c" alt="メイン画面" width="700" />
 
 ## 開発の背景と目的
 夜中にPCで作業や動画視聴を行っている最中に寝落ちしてしまい、朝まで無駄にPCが稼働し続けてしまう「切り忘れ問題」は、電力の無駄遣いだけでなくPCパーツの寿命にも影響します。
