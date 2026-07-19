@@ -1,0 +1,22 @@
+# Build
+bin/
+obj/
+publish/
+*.user
+*.suo
+.vs/
+
+# Backup / temp
+*.bak
+*.tmp
+*.log
+*.pdb
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Local config (AppData に保存、開発用コピー除外)
+schedules.json
+settings.json
+.show_signal

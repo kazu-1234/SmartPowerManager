@@ -1,0 +1,16 @@
+# GitHubにアップロードしないファイル
+schedules.json
+__pycache__/
+*.pyc
+.vscode/
+
+# PyInstaller build artifacts
+build/
+# dist/
+*.spec
+
+dist/
+
+config.h
+SmartPowerManager_backup/
+*.exe

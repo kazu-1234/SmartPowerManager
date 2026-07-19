@@ -65,6 +65,12 @@ int weeklyCount = 0;
 ScheduleOneTime onetimeSchedules[10];
 int onetimeCount = 0;
 
+// 自動WOL用スケジュール（シャットダウン3分前用、最大21件）
+ScheduleWeekly autoWolWeekly[21];
+int autoWolWeeklyCount = 0;
+ScheduleOneTime autoWolOnetime[21];
+int autoWolOnetimeCount = 0;
+
 // ----------------------------------------------------------------
 // LED制御
 // ----------------------------------------------------------------
@@ -509,6 +515,49 @@ void handleUpdateSchedule() {
     }
   }
 
+  // 裏自動WOLスケジュール（シャットダウン3分前用）の解析
+  if (server.hasArg("auto_wol_weekly")) {
+    String wStr = server.arg("auto_wol_weekly");
+    autoWolWeeklyCount = 0;
+    while (wStr.length() > 0 && autoWolWeeklyCount < 21) {
+      int semi = wStr.indexOf(';');
+      String item = (semi == -1) ? wStr : wStr.substring(0, semi);
+      wStr = (semi == -1) ? "" : wStr.substring(semi + 1);
+      int c1 = item.indexOf(','); int c2 = item.lastIndexOf(',');
+      if (c1 != -1 && c2 != -1 && c1 != c2) {
+         int d = item.substring(0, c1).toInt();
+         int h = item.substring(c1 + 1, c2).toInt();
+         int m = item.substring(c2 + 1).toInt();
+         autoWolWeekly[autoWolWeeklyCount++] = {"auto", d, h, m};
+      }
+    }
+  }
+  
+  if (server.hasArg("auto_wol_onetime")) {
+    String oStr = server.arg("auto_wol_onetime");
+    autoWolOnetimeCount = 0;
+    while (oStr.length() > 0 && autoWolOnetimeCount < 21) {
+      int semi = oStr.indexOf(';');
+      String item = (semi == -1) ? oStr : oStr.substring(0, semi);
+      oStr = (semi == -1) ? "" : oStr.substring(semi + 1);
+      int c1=item.indexOf(','), c2=item.indexOf(',',c1+1), c3=item.indexOf(',',c2+1), c4=item.indexOf(',',c3+1);
+      int c5=item.indexOf(',',c4+1); // source check
+      if (c4!=-1) {
+          int y = item.substring(0, c1).toInt(); int mo = item.substring(c1+1, c2).toInt();
+          int d = item.substring(c2+1, c3).toInt(); int h = item.substring(c3+1, c4).toInt();
+          int mi;
+          String src = "auto_wol";
+          if (c5 != -1) {
+              mi = item.substring(c4+1, c5).toInt();
+              src = item.substring(c5+1);
+          } else {
+              mi = item.substring(c4+1).toInt();
+          }
+          autoWolOnetime[autoWolOnetimeCount++] = {"auto", y, mo, d, h, mi, false, src};
+      }
+    }
+  }
+
   Serial.println("Schedule Updated via POST");
   
   // アプリから設定受信時: 2回素早く点滅
@@ -594,6 +643,19 @@ void checkSchedule() {
     if (!onetimeSchedules[i].executed && onetimeSchedules[i].year==currentYear && onetimeSchedules[i].month==currentMonth && 
         onetimeSchedules[i].day==currentDay && onetimeSchedules[i].hour==currentHour && onetimeSchedules[i].minute==currentMinute) { 
       wake=true; onetimeSchedules[i].executed=true; 
+    }
+  }
+  
+  // 裏自動WOLスケジュール実行判定
+  for (int i=0; i<autoWolWeeklyCount; i++) {
+    if (autoWolWeekly[i].weekday==currentWeekday && autoWolWeekly[i].hour==currentHour && autoWolWeekly[i].minute==currentMinute) {
+      wake=true;
+    }
+  }
+  for (int i=0; i<autoWolOnetimeCount; i++) {
+    if (!autoWolOnetime[i].executed && autoWolOnetime[i].year==currentYear && autoWolOnetime[i].month==currentMonth && 
+        autoWolOnetime[i].day==currentDay && autoWolOnetime[i].hour==currentHour && autoWolOnetime[i].minute==currentMinute) { 
+      wake=true; autoWolOnetime[i].executed=true; 
     }
   }
   

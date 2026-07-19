@@ -1,0 +1,128 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AppName" xml:space="preserve"><value>SmartPowerManager</value></data>
+  <data name="Nav_Shutdown.Content" xml:space="preserve"><value>シャットダウン</value></data>
+  <data name="Nav_Restart.Content" xml:space="preserve"><value>再起動</value></data>
+  <data name="Nav_Wake.Content" xml:space="preserve"><value>起動</value></data>
+  <data name="Nav_Update.Content" xml:space="preserve"><value>アップデート</value></data>
+  <data name="Nav_Info.Content" xml:space="preserve"><value>情報</value></data>
+  <data name="Shutdown_Title.Text" xml:space="preserve"><value>シャットダウンスケジュール</value></data>
+  <data name="Restart_Title.Text" xml:space="preserve"><value>再起動スケジュール</value></data>
+  <data name="Wake_Title.Text" xml:space="preserve"><value>起動（WoL）スケジュール</value></data>
+  <data name="Update_Title.Text" xml:space="preserve"><value>アップデート</value></data>
+  <data name="Info_Title.Text" xml:space="preserve"><value>情報</value></data>
+  <data name="Schedule_QuickHeader" xml:space="preserve"><value>クイック設定：x時間後</value></data>
+  <data name="Schedule_DailyHeader" xml:space="preserve"><value>毎日</value></data>
+  <data name="Schedule_WeeklyHeader" xml:space="preserve"><value>毎週</value></data>
+  <data name="Schedule_OnetimeHeader" xml:space="preserve"><value>一回限り</value></data>
+  <data name="Schedule_NextHeader" xml:space="preserve"><value>次回予定</value></data>
+  <data name="Schedule_LogHeader" xml:space="preserve"><value>ログ</value></data>
+  <data name="Schedule_CancelNext" xml:space="preserve"><value>次回予定をキャンセル</value></data>
+  <data name="Schedule_NoNext" xml:space="preserve"><value>次回予定はありません</value></data>
+  <data name="Schedule_NextFormat" xml:space="preserve"><value>{0}: {1} ({2})</value></data>
+  <data name="Schedule_Conflict" xml:space="preserve"><value>競合: {0} が同じ日時に登録されています</value></data>
+  <data name="Schedule_PastTime" xml:space="preserve"><value>過去の日時は指定できません</value></data>
+  <data name="Schedule_AddedWeekly" xml:space="preserve"><value>毎週 {0} {1:D2}:{2:D2} を追加しました</value></data>
+  <data name="Schedule_AddedOnetime" xml:space="preserve"><value>一回限り {0} を追加しました</value></data>
+  <data name="Schedule_QuickAdded" xml:space="preserve"><value>{0} 時間後のクイック予約を追加しました</value></data>
+  <data name="Schedule_Cancelled" xml:space="preserve"><value>次回予定をキャンセルしました</value></data>
+  <data name="Action_Shutdown" xml:space="preserve"><value>シャットダウン</value></data>
+  <data name="Action_Restart" xml:space="preserve"><value>再起動</value></data>
+  <data name="Wake_DailyHeader" xml:space="preserve"><value>毎日の起動</value></data>
+  <data name="Wake_SyncHeader" xml:space="preserve"><value>デバイス同期</value></data>
+  <data name="Wake_SyncButton" xml:space="preserve"><value>今すぐ同期</value></data>
+  <data name="Wake_LogHeader" xml:space="preserve"><value>同期ログ</value></data>
+  <data name="Settings_SectionAppearance" xml:space="preserve"><value>外観</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>テーマ</value></data>
+  <data name="Settings_ThemeDesc" xml:space="preserve"><value>ライト / ダーク / システム連動</value></data>
+  <data name="Theme_System" xml:space="preserve"><value>システム</value></data>
+  <data name="Theme_Light" xml:space="preserve"><value>ライト</value></data>
+  <data name="Theme_Dark" xml:space="preserve"><value>ダーク</value></data>
+  <data name="Settings_SectionStartup" xml:space="preserve"><value>起動設定</value></data>
+  <data name="Settings_AutoStart" xml:space="preserve"><value>ログオン時に自動起動</value></data>
+  <data name="Settings_AutoStartDesc" xml:space="preserve"><value>Windows ログオン時にタスクトレイ常駐で起動します（タスクスケジューラ方式）</value></data>
+  <data name="Settings_AutostartMode_Label" xml:space="preserve"><value>登録方式</value></data>
+  <data name="Settings_AutostartMode_Task" xml:space="preserve"><value>ログオンタスク</value></data>
+  <data name="Settings_AutostartPath_Label" xml:space="preserve"><value>登録コマンド</value></data>
+  <data name="Settings_Autostart_NotRegistered" xml:space="preserve"><value>未登録</value></data>
+  <data name="Settings_SectionDevice" xml:space="preserve"><value>デバイス連携</value></data>
+  <data name="Settings_OpenPicoWeb" xml:space="preserve"><value>Pico W 設定画面をブラウザで開く</value></data>
+  <data name="Settings_GasTarget" xml:space="preserve"><value>GAS 起動対象 PC</value></data>
+  <data name="Settings_RefreshMac" xml:space="preserve"><value>MAC アドレスを再検出</value></data>
+  <data name="Settings_UpdateDesc" xml:space="preserve"><value>GitHub Releases から更新を確認します</value></data>
+  <data name="Settings_CheckUpdate" xml:space="preserve"><value>アップデートを確認</value></data>
+  <data name="Settings_CurrentVersion" xml:space="preserve"><value>現在のバージョン: v{0}</value></data>
+  <data name="Update_DisclaimerHeader" xml:space="preserve"><value>免責事項</value></data>
+  <data name="Update_DisclaimerBody" xml:space="preserve"><value>本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。</value></data>
+  <data name="Update_AvailableTitle" xml:space="preserve"><value>更新あり</value></data>
+  <data name="Update_OpenRelease" xml:space="preserve"><value>リリースページを開く</value></data>
+  <data name="Update_NotConfigured" xml:space="preserve"><value>更新確認 URL が設定されていません</value></data>
+  <data name="Update_FetchFailed" xml:space="preserve"><value>リリース情報の取得に失敗しました</value></data>
+  <data name="Update_Available" xml:space="preserve"><value>新しいバージョン v{0} が利用可能です（現在: v{1}）</value></data>
+  <data name="Update_UpToDate" xml:space="preserve"><value>v{0} は最新です</value></data>
+  <data name="Update_Error" xml:space="preserve"><value>更新確認エラー: {0}</value></data>
+  <data name="Info_AboutHeader" xml:space="preserve"><value>アプリについて</value></data>
+  <data name="Info_Description" xml:space="preserve"><value>PC のシャットダウン・再起動スケジュール管理と Pico W / GAS 経由の WoL 遠隔起動を行います。</value></data>
+  <data name="Info_DisclaimerHeader" xml:space="preserve"><value>免責事項</value></data>
+  <data name="Info_DisclaimerBody" xml:space="preserve"><value>本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。</value></data>
+  <data name="Disclaimer_Title" xml:space="preserve"><value>免責事項</value></data>
+  <data name="Disclaimer_Body" xml:space="preserve"><value>本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。&#x0a;&#x0a;同意する場合は「同意する」をクリックしてください。</value></data>
+  <data name="Disclaimer_Accept" xml:space="preserve"><value>同意する</value></data>
+  <data name="Disclaimer_Exit" xml:space="preserve"><value>終了</value></data>
+  <data name="Common_Add" xml:space="preserve"><value>追加</value></data>
+  <data name="Common_OK" xml:space="preserve"><value>OK</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>キャンセル</value></data>
+  <data name="Error_Title" xml:space="preserve"><value>エラー</value></data>
+  <data name="Tray_OpenSettings" xml:space="preserve"><value>設定を開く</value></data>
+  <data name="Tray_Exit" xml:space="preserve"><value>終了</value></data>
+</root>

@@ -1,0 +1,184 @@
+<Page
+    x:Class="SmartPowerManager.Views.RestartPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:SmartPowerManager.Views">
+    <views:PageScrollHost>
+        <Grid x:Name="PageRoot">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="PageTitleText"
+                       Grid.Row="0"
+                       Text="再起動"
+                       Style="{StaticResource PageTitleTextStyle}"
+                       VerticalAlignment="Bottom"
+                       Margin="0,0,0,10" />
+
+            <Grid x:Name="ScheduleSplitGrid"
+                  Grid.Row="1"
+                  ColumnSpacing="12"
+                  RowSpacing="12">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup x:Name="SplitStates">
+                        <VisualState x:Name="Wide">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="1100" />
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="LeftCard.(Grid.Row)" Value="0" />
+                                <Setter Target="LeftCard.(Grid.Column)" Value="0" />
+                                <Setter Target="LeftCard.(Grid.ColumnSpan)" Value="1" />
+                                <Setter Target="RightCard.(Grid.Row)" Value="0" />
+                                <Setter Target="RightCard.(Grid.Column)" Value="1" />
+                                <Setter Target="RightCard.(Grid.ColumnSpan)" Value="1" />
+                                <Setter Target="BottomRow.Height" Value="0" />
+                            </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="Narrow">
+                            <VisualState.Setters>
+                                <Setter Target="LeftCard.(Grid.Row)" Value="0" />
+                                <Setter Target="LeftCard.(Grid.Column)" Value="0" />
+                                <Setter Target="LeftCard.(Grid.ColumnSpan)" Value="2" />
+                                <Setter Target="RightCard.(Grid.Row)" Value="1" />
+                                <Setter Target="RightCard.(Grid.Column)" Value="0" />
+                                <Setter Target="RightCard.(Grid.ColumnSpan)" Value="2" />
+                                <Setter Target="BottomRow.Height" Value="Auto" />
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.4*" MinWidth="0" />
+                    <ColumnDefinition Width="*" MinWidth="0" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition x:Name="BottomRow" Height="0" />
+                </Grid.RowDefinitions>
+
+                <Border x:Name="LeftCard" Style="{StaticResource ScheduleCardBorderStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Style="{StaticResource ScheduleFormRowStyle}" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="スケジュール監視" Style="{StaticResource CardFormTitleStyle}" />
+                                <TextBlock x:Name="MonitorStatusText"
+                                           Style="{StaticResource CardDescriptionTextStyle}"
+                                           Text="監視中" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="MonitorToggle"
+                                          Grid.Column="2"
+                                          Style="{StaticResource ScheduleToggleSwitchStyle}"
+                                          ToolTipService.ToolTip="スケジュール監視の有効／無効"
+                                          Toggled="MonitorToggle_Toggled" />
+                            <Border Style="{StaticResource ScheduleRowDividerStyle}" VerticalAlignment="Bottom" Grid.ColumnSpan="3" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" Style="{StaticResource ScheduleFormRowStyle}" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="クイック設定：x時間後" Style="{StaticResource CardFormTitleStyle}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Style="{StaticResource FormRowStackPanelStyle}">
+                                <Button Content="1h" Style="{StaticResource QuickActionButtonStyle}" Click="QuickButton_Click" Tag="1" />
+                                <Button Content="3h" Style="{StaticResource QuickActionButtonStyle}" Click="QuickButton_Click" Tag="3" />
+                                <Button Content="6h" Style="{StaticResource QuickActionButtonStyle}" Click="QuickButton_Click" Tag="6" />
+                                <Button Content="9h" Style="{StaticResource QuickActionButtonStyle}" Click="QuickButton_Click" Tag="9" />
+                                <Button Content="12h" Style="{StaticResource QuickActionButtonStyle}" Click="QuickButton_Click" Tag="12" />
+                            </StackPanel>
+                            <Border Style="{StaticResource ScheduleRowDividerStyle}" VerticalAlignment="Bottom" Grid.ColumnSpan="3" />
+                        </Grid>
+
+                        <Grid Grid.Row="2" Style="{StaticResource ScheduleFormRowStyle}" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="毎日スケジュール" Style="{StaticResource CardFormTitleStyle}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Style="{StaticResource FormRowStackPanelStyle}">
+                                <views:CompactTimeInput x:Name="DailyTimeInput" TimeChanged="DailyTimeInput_TimeChanged" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="DailyToggle"
+                                          Grid.Column="2"
+                                          Style="{StaticResource ScheduleToggleSwitchStyle}"
+                                          ToolTipService.ToolTip="毎日スケジュールの有効／無効"
+                                          Toggled="DailyToggle_Toggled" />
+                            <Border Style="{StaticResource ScheduleRowDividerStyle}" VerticalAlignment="Bottom" Grid.ColumnSpan="3" />
+                        </Grid>
+
+                        <Grid Grid.Row="3" Style="{StaticResource ScheduleFormRowStyle}" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="毎週スケジュールを追加" Style="{StaticResource CardFormTitleStyle}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Style="{StaticResource FormRowStackPanelStyle}">
+                                <ComboBox x:Name="WeeklyWeekdayBox" Style="{StaticResource CompactComboBoxStyle}" />
+                                <views:CompactTimeInput x:Name="WeeklyTimeInput" />
+                                <Button Content="追加" Style="{StaticResource PrimaryActionButtonStyle}" Click="AddWeeklyButton_Click" />
+                            </StackPanel>
+                            <Border Style="{StaticResource ScheduleRowDividerStyle}" VerticalAlignment="Bottom" Grid.ColumnSpan="3" />
+                        </Grid>
+
+                        <Grid Grid.Row="4" Style="{StaticResource ScheduleFormRowStyle}" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="一回限りスケジュールを追加" Style="{StaticResource CardFormTitleStyle}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Style="{StaticResource FormRowStackPanelStyle}">
+                                <views:CompactDateTimeInput x:Name="OnetimeDateTimeInput" />
+                                <Button Content="追加" Style="{StaticResource PrimaryActionButtonStyle}" Click="AddOnetimeButton_Click" />
+                            </StackPanel>
+                            <Border Style="{StaticResource ScheduleRowDividerStyle}" VerticalAlignment="Bottom" Grid.ColumnSpan="3" />
+                        </Grid>
+
+                        <Grid Grid.Row="5" Style="{StaticResource ScheduleFormRowStyle}" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="次回再起動予定" Style="{StaticResource CardFormTitleStyle}" />
+                                <TextBlock x:Name="NextScheduleText" Style="{StaticResource CardDescriptionTextStyle}" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Grid.ColumnSpan="2"
+                                    Content="次回予定をキャンセル"
+                                    Style="{StaticResource SecondaryActionButtonStyle}"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right"
+                                    Click="CancelNextButton_Click" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <views:UpcomingSchedulePanel x:Name="RightCard" Grid.Column="1" />
+            </Grid>
+        </Grid>
+    </views:PageScrollHost>
+</Page>

@@ -1,0 +1,80 @@
+<Page
+    x:Class="SmartPowerManager.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:views="using:SmartPowerManager.Views">
+    <views:PageScrollHost>
+        <StackPanel Style="{StaticResource PageBaseStackPanelStyle}"
+                    Width="{StaticResource UtilityPageMaxWidth}"
+                    MaxWidth="{StaticResource UtilityPageMaxWidth}"
+                    HorizontalAlignment="Center">
+            <TextBlock Text="設定" Style="{StaticResource PageTitleTextStyle}" />
+
+            <TextBlock Text="外観" Style="{StaticResource SettingsSectionHeaderStyle}" Margin="0,0,0,4" />
+
+            <controls:SettingsCard>
+                <controls:SettingsCard.Header>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="テーマ" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="ライト / ダーク / システム連動" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </controls:SettingsCard.Header>
+                <ComboBox x:Name="ThemeComboBox" Style="{StaticResource CompactComboBoxStyle}" SelectionChanged="ThemeComboBox_SelectionChanged" />
+            </controls:SettingsCard>
+
+            <TextBlock Text="起動設定" Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+            <controls:SettingsCard>
+                <controls:SettingsCard.Header>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="ログオン時に自動起動" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Windows ログオン時にタスクトレイ常駐で起動します（タスクスケジューラ方式）" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </controls:SettingsCard.Header>
+                <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard>
+                <controls:SettingsCard.Description>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="登録方式" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="AutostartModeText" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Text="登録コマンド" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="AutostartPathText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                </controls:SettingsCard.Description>
+            </controls:SettingsCard>
+
+            <TextBlock Text="デバイス連携" Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+            <controls:SettingsCard>
+                <controls:SettingsCard.Description>
+                    <StackPanel Spacing="12">
+                        <TextBox x:Name="PicoIpTextBox" Header="Pico W IP Address" PlaceholderText="192.168.10.x" />
+                        <Button Content="Pico W 設定画面をブラウザで開く" Style="{StaticResource SecondaryActionButtonStyle}" Click="OpenPicoWebButton_Click" />
+                        <TextBox x:Name="GasUrlTextBox" Header="GAS Webhook URL" PlaceholderText="https://script.google.com/..." />
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="GAS 起動対象 PC" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                            <RadioButton x:Name="GasDesktopRadio" Content="デスクトップPC" GroupName="GasTarget" />
+                            <RadioButton x:Name="GasServerRadio" Content="サーバーPC" GroupName="GasTarget" />
+                        </StackPanel>
+                        <ComboBox x:Name="MacComboBox" Header="起動対象 MAC アドレス" HorizontalAlignment="Stretch" />
+                        <Button Content="MAC アドレスを再検出" Style="{StaticResource SecondaryActionButtonStyle}" Click="RefreshMacButton_Click" />
+                    </StackPanel>
+                </controls:SettingsCard.Description>
+            </controls:SettingsCard>
+
+            <controls:SettingsCard>
+                <controls:SettingsCard.Header>
+                    <TextBlock Text="免責事項" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                </controls:SettingsCard.Header>
+                <controls:SettingsCard.Description>
+                    <TextBlock Text="本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。"
+                               Style="{StaticResource BodyTextBlockStyle}"
+                               TextWrapping="Wrap" />
+                </controls:SettingsCard.Description>
+            </controls:SettingsCard>
+        </StackPanel>
+    </views:PageScrollHost>
+</Page>

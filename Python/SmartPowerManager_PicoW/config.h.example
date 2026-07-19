@@ -1,0 +1,35 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// --- IRremote警告抑制 ---
+#define SUPPRESS_SEND_PWM_BY_TIMER_INFO
+#define NO_LED_FEEDBACK_CODE
+
+//================================================================
+// ★★★ 設定ファイル（機密情報はここだけに記入。Git にはプレースホルダのみ） ★★★
+//================================================================
+
+constexpr bool DEBUG = false;
+
+struct WiFiCredential
+{
+  const char *ssid;
+  const char *password;
+};
+
+const WiFiCredential wifiCredentials[] = {
+    {"YOUR_SSID_1", "YOUR_PASSWORD_1"},
+    {"YOUR_SSID_2", "YOUR_PASSWORD_2"},
+    {"YOUR_SSID_3", "YOUR_PASSWORD_3"}
+};
+const int numWifiCredentials = sizeof(wifiCredentials) / sizeof(wifiCredentials[0]);
+
+const char *NTP_SERVER = "ntp.nict.jp";
+
+const bool USE_STATIC_IP = false;
+const byte STATIC_IP_BYTES[] = {192, 168, 10, 100};
+const byte GATEWAY_BYTES[] = {192, 168, 10, 1};
+const byte SUBNET_BYTES[] = {255, 255, 255, 0};
+const byte DNS_BYTES[] = {192, 168, 10, 1};
+
+#endif

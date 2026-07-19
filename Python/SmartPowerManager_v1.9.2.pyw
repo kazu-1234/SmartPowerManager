@@ -1,7 +1,7 @@
-# version: 1.7.2
+# version: 1.9.2
 # -*- coding: utf-8 -*-
 """
-SmartPowerManager v1.7.2
+SmartPowerManager v1.9.2
 PCのシャットダウンスケジュール管理アプリケーション
 
 機能:
@@ -13,9 +13,9 @@ PCのシャットダウンスケジュール管理アプリケーション
 - シャットダウン/再起動前確認ダイアログ（60秒カウントダウン）
 - シャットダウンと再起動の排他制御（同時刻不可）
 
-v1.6.3 変更点:
-- Pico W連携強化: 設定の読込機能(Fetch)を追加、JSON形式での同期に対応
-- Web UI: 毎日スケジュール設定フォームの追加
+v1.9.2 変更点:
+- [バグ修正] シャットダウン/再起動の3分前WOL（スリープ対策）が再起動スケジュールに対応していなかった問題を修正
+- [改善] Pico W直接送信・GAS Webhook送信の両方で再起動3分前WOLを正しく計算するよう修正
 """
 
 import os
@@ -73,7 +73,7 @@ def reset_power_state():
 # =============================================================================
 # 定数定義
 # =============================================================================
-APP_VERSION = "v1.7.3"
+APP_VERSION = "v1.9.2"
 APP_TITLE = "SmartPowerManager"
 
 # 設定ファイルのパス決定（PyInstaller対応）
@@ -83,6 +83,8 @@ else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 CONFIG_FILE = os.path.join(BASE_DIR, "schedules.json")
+# 多重起動防止用のシグナルファイル（既存インスタンスへの表示要求に使用）
+SIGNAL_FILE = os.path.join(BASE_DIR, ".show_signal")
 
 # GitHubのリポジトリ情報
 GITHUB_USER = "kazu-1234"
@@ -183,7 +185,7 @@ class ScheduleManager:
         if os.path.exists(self.config_path):
             with self.lock:
                 try:
-                    with open(self.config_path, 'r', encoding='utf-8') as f:
+                    with open(self.config_path, 'r', encoding='utf-8-sig') as f:
                         data = json.load(f)
                         
                         # dailyスケジュールの読み込みと移行
@@ -482,6 +484,9 @@ class ScheduleManager:
 class SmartPowerManagerApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        # 起動時に一瞬ウィンドウが表示されるのを防ぐため、最初に非表示にする
+        self.withdraw()
+        
         self.title(APP_TITLE)
         self.geometry("900x650")
         self.minsize(900, 650)
@@ -505,7 +510,7 @@ class SmartPowerManagerApp(tk.Tk):
         self.monitor_thread = None
         
         self._setup_widgets()
-        self._setup_realtime_clock() # 追加: リアルタイム時計機能
+        self._setup_realtime_clock() # リアルタイム時計機能
         self._update_schedule_display()
         self._start_monitor()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -520,10 +525,12 @@ class SmartPowerManagerApp(tk.Tk):
         # 既存のスタートアップ設定をチェックして更新
         self._ensure_startup_arg()
 
-        # スタートアップ起動判定
-        if "--startup" in sys.argv:
-            self.withdraw()
+        # 手動起動の場合のみウィンドウを表示する
+        # --startup（自動起動）の場合はバックグラウンドのまま
+        if "--startup" not in sys.argv:
+            self.deiconify()
             
+        # タスクトレイアイコンを起動
         threading.Thread(target=self._run_tray, daemon=True).start()
     
     def _setup_widgets(self):
@@ -1173,15 +1180,20 @@ class SmartPowerManagerApp(tk.Tk):
         self.startup_log_text.see("end")
         self.startup_log_text.config(state="disabled")
 
-    def _sync_to_pico(self):
-        """Pico Wに設定を送信 (POST)"""
+    def _sync_to_pico(self, silent=False):
+        """Pico WおよびGASに設定を送信 (どちらか片方でも動作可能)"""
         ip = self.pico_ip_var.get()
-        if not ip or ip == "192.168.10.x":
-            messagebox.showwarning("入力エラー", "設定タブでPico WのIPアドレスを設定してください")
+        has_pico_ip = ip and ip != "192.168.10.x"
+        gas_url = self.schedule_manager.pico_settings.get("gas_url", "")
+        has_gas_url = gas_url.startswith("http")
+        
+        # どちらも未設定の場合のみエラー
+        if not has_pico_ip and not has_gas_url:
+            if not silent: messagebox.showwarning("入力エラー", "設定タブでPico WのIPアドレスまたはGAS Webhook URLを設定してください")
             return
             
         try:
-            self._log_startup("設定を送信中...")
+            if not silent: self._log_startup("設定を送信中...")
             
             # Daily
             h = int(self.startup_hour_var.get())
@@ -1193,37 +1205,134 @@ class SmartPowerManagerApp(tk.Tk):
             self.schedule_manager.pico_settings["startup_daily"] = {"enabled": bool(en), "hour": h, "minute": m}
             self.schedule_manager.save()
 
-            # Construct POST data (Custom text format)
-            # Format: daily=en,h,m&mac=...&weekly=d,h,m;d,h,m&onetime=y,m,d,h,m;...
-            
-            weekly_str = ""
-            for s in self.schedule_manager.pico_settings["startup_weekly"]:
-                # d,h,m
-                weekly_str += f"{s['weekday']},{s['hour']},{s['minute']};"
-            
-            onetime_str = ""
-            for s in self.schedule_manager.pico_settings["startup_onetime"]:
-                # y,m,d,h,m parsing from string
-                try:
-                    dt = datetime.strptime(s["datetime"], "%Y-%m-%d %H:%M")
-                    # Append source if available, default to manual
-                    src = s.get("source", "manual")
-                    onetime_str += f"{dt.year},{dt.month},{dt.day},{dt.hour},{dt.minute},{src};"
-                except: pass
+            # --- Pico Wへの直接送信 (IPが設定されている場合のみ) ---
+            if has_pico_ip:
+                # Construct POST data (Custom text format)
+                # Format: daily=en,h,m&mac=...&weekly=d,h,m;d,h,m&onetime=y,m,d,h,m;...
                 
-            post_data = {
-                "d_en": str(en),
-                "d_h": str(h),
-                "d_m": str(m),
-                "mac": mac,
-                "weekly": weekly_str,
-                "onetime": onetime_str
-            }
+                weekly_str = ""
+                for s in self.schedule_manager.pico_settings["startup_weekly"]:
+                    # d,h,m
+                    weekly_str += f"{s['weekday']},{s['hour']},{s['minute']};"
+                
+                onetime_str = ""
+                for s in self.schedule_manager.pico_settings["startup_onetime"]:
+                    # y,m,d,h,m parsing from string
+                    try:
+                        dt = datetime.strptime(s["datetime"], "%Y-%m-%d %H:%M")
+                        # Append source if available, default to manual
+                        src = s.get("source", "manual")
+                        onetime_str += f"{dt.year},{dt.month},{dt.day},{dt.hour},{dt.minute},{src};"
+                    except: pass
+
+                # --- 裏自動WOLスケジュール (シャットダウン/再起動3分前用) の構築 ---
+                auto_wol_weekly_str = ""
+                auto_wol_onetime_str = ""
+                
+                # シャットダウンと再起動の両方を対象にする
+                for target_action in [ACTION_SHUTDOWN, ACTION_RESTART]:
+                    action_daily = self.schedule_manager.daily_schedule[target_action]
+                    action_weekly = [s for s in self.schedule_manager.weekly_schedules if s["action"] == target_action]
+                    action_onetime = [s for s in self.schedule_manager.onetime_schedules if s["action"] == target_action and not s.get("executed", False)]
+                    
+                    # 毎日スケジュール -> 毎日WOL (曜日0~6のweeklyに変換)
+                    if action_daily["enabled"]:
+                        dt_base = datetime(2000, 1, 1, action_daily["hour"], action_daily["minute"]) - timedelta(minutes=3)
+                        for wd in range(7):
+                            auto_wol_weekly_str += f"{wd},{dt_base.hour},{dt_base.minute};"
+                            
+                    # 毎週スケジュール -> WOL
+                    for s in action_weekly:
+                        h_s, m_s = s["hour"], s["minute"]
+                        wd = s["weekday"]
+                        if h_s == 0 and m_s < 3:
+                            wd = (wd - 1) % 7
+                        dt_base = datetime(2000, 1, 1, h_s, m_s) - timedelta(minutes=3)
+                        auto_wol_weekly_str += f"{wd},{dt_base.hour},{dt_base.minute};"
+                        
+                    # 一回限りスケジュール -> WOL
+                    for s in action_onetime:
+                        try:
+                            dt = datetime.strptime(s["datetime"], "%Y-%m-%d %H:%M")
+                            wake_dt = dt - timedelta(minutes=3)
+                            if wake_dt > datetime.now():
+                                auto_wol_onetime_str += f"{wake_dt.year},{wake_dt.month},{wake_dt.day},{wake_dt.hour},{wake_dt.minute},auto_wol;"
+                        except: pass
+                    
+                post_data = {
+                    "d_en": str(en),
+                    "d_h": str(h),
+                    "d_m": str(m),
+                    "mac": mac,
+                    "weekly": weekly_str,
+                    "onetime": onetime_str,
+                    "auto_wol_weekly": auto_wol_weekly_str,
+                    "auto_wol_onetime": auto_wol_onetime_str
+                }
+                
+                data = urllib.parse.urlencode(post_data).encode('utf-8')
+                url = f"http://{ip}/update_schedule"
+                
+                threading.Thread(target=self._sync_worker, args=(url, data), daemon=True).start()
             
-            data = urllib.parse.urlencode(post_data).encode('utf-8')
-            url = f"http://{ip}/update_schedule"
-            
-            threading.Thread(target=self._sync_worker, args=(url, data), daemon=True).start()
+            # --- GASへのWebhook送信 (URLが設定されている場合のみ) ---
+            if has_gas_url:
+                wol_triggers = []
+                
+                # 1. 起動(Startup) の時刻を追加
+                su_daily = self.schedule_manager.pico_settings.get("startup_daily", {})
+                if su_daily.get("enabled"):
+                    wol_triggers.append({"type": "daily", "hour": int(su_daily.get("hour", 0)), "minute": int(su_daily.get("minute", 0))})
+                    
+                for s in self.schedule_manager.pico_settings.get("startup_weekly", []):
+                    wol_triggers.append({"type": "weekly", "weekday": s["weekday"], "hour": s["hour"], "minute": s["minute"]})
+                    
+                for s in self.schedule_manager.pico_settings.get("startup_onetime", []):
+                    try:
+                        # 形式の検証
+                        dt = datetime.strptime(s["datetime"], "%Y-%m-%d %H:%M")
+                        wol_triggers.append({"type": "onetime", "datetime": s["datetime"]})
+                    except: pass
+                
+                # 2. シャットダウン/再起動3分前の時刻を追加（スリープ対策WOL）
+                for target_action in [ACTION_SHUTDOWN, ACTION_RESTART]:
+                    action_daily = self.schedule_manager.daily_schedule[target_action]
+                    if action_daily["enabled"]:
+                        dt_wol = datetime(2000, 1, 1, action_daily["hour"], action_daily["minute"]) - timedelta(minutes=3)
+                        wol_triggers.append({"type": "daily", "hour": dt_wol.hour, "minute": dt_wol.minute})
+                    
+                    for s in self.schedule_manager.weekly_schedules:
+                        if s["action"] == target_action:
+                            wd = s["weekday"]
+                            dt_wol = datetime(2000, 1, 1, s["hour"], s["minute"]) - timedelta(minutes=3)
+                            if s["hour"] == 0 and s["minute"] < 3:
+                                wd = (wd - 1) % 7
+                            wol_triggers.append({"type": "weekly", "weekday": wd, "hour": dt_wol.hour, "minute": dt_wol.minute})
+                    
+                    for s in self.schedule_manager.onetime_schedules:
+                        if s["action"] == target_action and not s.get("executed", False):
+                            try:
+                                dt = datetime.strptime(s["datetime"], "%Y-%m-%d %H:%M") - timedelta(minutes=3)
+                                wol_triggers.append({"type": "onetime", "datetime": dt.strftime("%Y-%m-%d %H:%M")})
+                            except: pass
+                
+                gas_payload = {
+                    "wol_triggers": wol_triggers,
+                    "target_pc": self.gas_target_var.get()
+                }
+                gas_data = json.dumps(gas_payload).encode('utf-8')
+                
+                def gas_worker(g_url, g_data):
+                    try:
+                        req = urllib.request.Request(g_url, data=g_data, method='POST', headers={'Content-Type': 'application/json'})
+                        with urllib.request.urlopen(req, timeout=10) as res:
+                            pass # 成功時は特にログを出さない（UIを煩雑にしないため）
+                    except Exception as e:
+                        if not silent:
+                            self.after(0, lambda err=e: self._log_startup(f"GAS送信エラー: {err}"))
+                            
+                threading.Thread(target=gas_worker, args=(gas_url, gas_data), daemon=True).start()
+                
         except Exception as e:
             self._log_startup(f"エラー: {e}")
             messagebox.showerror("エラー", f"設定値が不正です: {e}")
@@ -1430,6 +1539,30 @@ class SmartPowerManagerApp(tk.Tk):
             self._log(f"Opening Pico Settings: {url}")
         ttk.Button(ip_row, text="設定画面をブラウザで開く", command=open_pico_settings).pack(side=tk.LEFT, padx=10)
 
+        # 1.5 GAS URL (Thunder Sensor用)
+        gas_row = ttk.Frame(pico_frame)
+        gas_row.pack(fill=tk.X, pady=5)
+        ttk.Label(gas_row, text="GAS Webhook URL (Thunder Sensor等への連携用):").pack(side=tk.LEFT)
+        self.gas_url_var = tk.StringVar(value=pico_settings.get("gas_url", ""))
+        ttk.Entry(gas_row, textvariable=self.gas_url_var, width=50).pack(side=tk.LEFT, padx=5)
+        
+        # 1.6 GAS 起動対象PC
+        gas_target_row = ttk.Frame(pico_frame)
+        gas_target_row.pack(fill=tk.X, pady=5)
+        ttk.Label(gas_target_row, text="GAS 起動対象PC:").pack(side=tk.LEFT)
+        self.gas_target_var = tk.StringVar(value=pico_settings.get("gas_target", "デスクトップPC"))
+        ttk.Radiobutton(gas_target_row, text="デスクトップPC", variable=self.gas_target_var, value="デスクトップPC").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(gas_target_row, text="サーバーPC", variable=self.gas_target_var, value="サーバーPC").pack(side=tk.LEFT, padx=5)
+        
+        def save_gas_settings(*args):
+             self.schedule_manager.pico_settings["gas_url"] = self.gas_url_var.get()
+             self.schedule_manager.pico_settings["gas_target"] = self.gas_target_var.get()
+             self.schedule_manager.save()
+             self._sync_to_pico(silent=True)
+             
+        self.gas_url_var.trace_add("write", save_gas_settings)
+        self.gas_target_var.trace_add("write", save_gas_settings)
+
         # 2. Target MAC
         mac_group = ttk.LabelFrame(pico_frame, text="起動対象PC MACアドレス", padding="5")
         mac_group.pack(fill=tk.X, pady=5)
@@ -1531,10 +1664,14 @@ class SmartPowerManagerApp(tk.Tk):
         self._update_schedule_display()
         t = datetime.now() + timedelta(hours=hours)
         self._log(f"{hours}時間後にシャットダウン予約: {t.strftime('%H:%M')}")
+        self._sync_to_pico(silent=True)
+
     def _remove_selected_quick(self):
         for i in self.quick_tree.selection():
             self.schedule_manager.remove_onetime(self.quick_tree.item(i)["tags"][0])
         self._update_schedule_display()
+        self._sync_to_pico(silent=True)
+
     def _on_daily_changed(self):
         try:
             e, h, m = self.daily_enabled_var.get(), int(self.daily_hour_var.get()), int(self.daily_minute_var.get())
@@ -1549,7 +1686,9 @@ class SmartPowerManagerApp(tk.Tk):
             self.schedule_manager.daily_schedule[ACTION_SHUTDOWN] = {"enabled":e, "hour":h, "minute":m}
             self.schedule_manager.save()
             self._update_schedule_display()
+            self._sync_to_pico(silent=True)
         except: pass
+
     def _add_weekly(self):
         try:
             w=WEEKDAYS_JP.index(self.weekly_add_day_var.get()); h=int(self.weekly_add_hour_var.get()); m=int(self.weekly_add_minute_var.get())
@@ -1559,10 +1698,14 @@ class SmartPowerManagerApp(tk.Tk):
 
             self.schedule_manager.add_weekly(ACTION_SHUTDOWN, w, h, m)
             self._update_schedule_display()
+            self._sync_to_pico(silent=True)
         except: pass
+
     def _remove_selected_weekly(self):
         for i in self.weekly_tree.selection(): self.schedule_manager.remove_weekly(self.weekly_tree.item(i)["tags"][0])
         self._update_schedule_display()
+        self._sync_to_pico(silent=True)
+
     def _add_onetime(self):
         try:
             y, mo, d, h, mi = int(self.onetime_year_var.get()), int(self.onetime_month_var.get()), int(self.onetime_day_var.get()), int(self.onetime_hour_var.get()), int(self.onetime_minute_var.get())
@@ -1573,13 +1716,19 @@ class SmartPowerManagerApp(tk.Tk):
 
             self.schedule_manager.add_onetime(ACTION_SHUTDOWN, dt_s)
             self._update_schedule_display()
+            self._sync_to_pico(silent=True)
         except: pass
+
     def _remove_selected_onetime(self):
         for i in self.onetime_tree.selection(): self.schedule_manager.remove_onetime(self.onetime_tree.item(i)["tags"][0])
         self._update_schedule_display()
+        self._sync_to_pico(silent=True)
+
     def _clear_executed_onetime(self):
         self.schedule_manager.clear_executed_onetime(ACTION_SHUTDOWN)
         self._update_schedule_display()
+        self._sync_to_pico(silent=True)
+
     def _cancel_all(self):
         """次回スケジュールをキャンセル（一回限り:削除、毎日/毎週:スキップ）"""
         try: subprocess.Popen(["shutdown", "/a"], creationflags=subprocess.CREATE_NO_WINDOW)
@@ -1605,6 +1754,7 @@ class SmartPowerManagerApp(tk.Tk):
             self._log_all("キャンセルしました")
         
         self._update_schedule_display()
+        self._sync_to_pico(silent=True)
 
     # --- イベントハンドラ (Restart) ---
     def _add_r_hours_later(self, hours):
@@ -1906,6 +2056,14 @@ class SmartPowerManagerApp(tk.Tk):
         while self.monitor_running:
             now = datetime.now()
             
+            # シグナルファイルの監視（多重起動時の表示要求）
+            if os.path.exists(SIGNAL_FILE):
+                try:
+                    os.remove(SIGNAL_FILE)
+                    self.after(0, self._bring_to_front)
+                except Exception:
+                    pass
+            
             # リアルタイム時計更新 (毎秒)
             self.after(0, self._update_realtime_vars)
             
@@ -1932,15 +2090,36 @@ class SmartPowerManagerApp(tk.Tk):
         lbl = "シャットダウン" if action == ACTION_SHUTDOWN else "再起動"
         d = tk.Toplevel(self)
         d.title(f"{lbl}確認")
-        d.geometry("350x150")
         
         # 常に最前面に表示
         d.attributes('-topmost', True)
+        
+        # 中央配置
+        width = 450
+        height = 200
+        d.update_idletasks()
+        try:
+            x = (d.winfo_screenwidth() - width) // 2
+            y = (d.winfo_screenheight() - height) // 2
+            d.geometry(f"{width}x{height}+{x}+{y}")
+        except:
+            d.geometry(f"{width}x{height}")
+            
         d.focus_force()
         
-        ttk.Label(d, text=f"理由: {trigger}").pack(pady=10)
-        cd = ttk.Label(d, text=f"60秒後に{lbl}します", font=("",12,"bold"))
-        cd.pack()
+        # 表示時に警告音を鳴らす
+        try:
+            import winsound
+            winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS | winsound.SND_ASYNC)
+        except Exception:
+            pass
+        
+        main_frame = ttk.Frame(d, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(main_frame, text=f"予定: {trigger}", font=("Meiryo UI", 11)).pack(pady=(0, 5))
+        cd = ttk.Label(main_frame, text=f"60秒後に{lbl}します", font=("Meiryo UI", 20, "bold"), foreground="#d9534f")
+        cd.pack(pady=10)
         
         cancel = [False]
         def do_ex():
@@ -1954,9 +2133,11 @@ class SmartPowerManagerApp(tk.Tk):
             d.destroy()
             self._log_all("キャンセル")
             
-        f = ttk.Frame(d); f.pack(pady=10)
-        ttk.Button(f, text="実行", command=do_ex).pack(side=tk.LEFT)
-        ttk.Button(f, text="キャンセル", command=do_cn).pack(side=tk.LEFT)
+        f = ttk.Frame(main_frame)
+        f.pack(pady=15)
+        # スタイルを使ってボタンも少し大きくする
+        ttk.Button(f, text="今すぐ実行", command=do_ex, width=15).pack(side=tk.LEFT, padx=10)
+        ttk.Button(f, text="キャンセル", command=do_cn, width=15).pack(side=tk.LEFT, padx=10)
         
         cnt = [60]
         def tick():
@@ -1965,6 +2146,12 @@ class SmartPowerManagerApp(tk.Tk):
             if cnt[0] <= 0: do_ex()
             else:
                 cd.config(text=f"{cnt[0]}秒後に{lbl}します")
+                # 残り10秒を切ったら毎秒ビープ音を鳴らす
+                if cnt[0] <= 10:
+                    try:
+                        import winsound
+                        winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                    except: pass
                 d.after(1000, tick)
         d.after(1000, tick)
 
@@ -1978,7 +2165,9 @@ class SmartPowerManagerApp(tk.Tk):
         dialog.title("利用規約・免責事項")
         dialog.geometry("500x400")
         dialog.resizable(False, False)
-        dialog.transient(self)
+        # メインウィンドウがwithdraw()されているとtransient設定によってダイアログも非表示になってしまうバグを回避
+        if self.state() != "withdrawn":
+            dialog.transient(self)
         dialog.grab_set()
 
         # 画面中央配置
@@ -2053,6 +2242,14 @@ class SmartPowerManagerApp(tk.Tk):
             style.configure("Treeview.Heading", font=("Meiryo UI", 9, "bold"))
         except Exception:
             pass
+
+    def _bring_to_front(self):
+        """ウィンドウを前面に表示する（多重起動時のシグナル受信用）"""
+        self.deiconify()
+        self.lift()
+        self.attributes('-topmost', True)
+        self.after(100, lambda: self.attributes('-topmost', False))
+        self.focus_force()
 
     def _on_close(self):
         self.withdraw()
@@ -2188,16 +2385,28 @@ class SmartPowerManagerApp(tk.Tk):
 if __name__ == '__main__':
     # Log startup for debugging
     try:
-        with open("debug.log", "a") as f:
+        log_path = os.path.join(BASE_DIR, "debug.log")
+        with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now()}] Started: {sys.executable} Args: {sys.argv}\n")
     except: pass
 
-    # ゾンビプロセス（古いバージョンの残り）を強制終了
-    # 自分以外の SmartPowerManager*.exe を全てkillする
+    # --- 多重起動防止（Named Mutex） ---
+    # Windowsの名前付きMutexを使用して、既にインスタンスが起動中かチェック
+    mutex_handle = ctypes.windll.kernel32.CreateMutexW(None, False, "SmartPowerManager_SingleInstance")
+    ERROR_ALREADY_EXISTS = 183
+    if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+        # 既に起動中 → シグナルファイルを作成して既存インスタンスにウィンドウ表示を要求
+        try:
+            with open(SIGNAL_FILE, "w") as f:
+                f.write("show")
+        except: pass
+        # ポップアップなしで静かに終了
+        sys.exit(0)
+    
+    # 起動時にシグナルファイルが残っていたら削除
     try:
-        my_pid = os.getpid()
-        subprocess.run(f'taskkill /F /IM SmartPowerManager*.exe /FI "PID ne {my_pid}"', 
-                       shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(SIGNAL_FILE):
+            os.remove(SIGNAL_FILE)
     except: pass
 
     app = SmartPowerManagerApp()

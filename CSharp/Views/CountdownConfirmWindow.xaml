@@ -1,0 +1,59 @@
+<Window x:Class="SmartPowerManager.Views.CountdownConfirmWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="RootGrid"
+          Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+          Padding="28,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="TitleText"
+                   Grid.Row="0"
+                   Style="{StaticResource SubtitleTextBlockStyle}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,16" />
+
+        <StackPanel Grid.Row="1"
+                    VerticalAlignment="Center"
+                    Spacing="8">
+            <TextBlock x:Name="MessageText"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+            <TextBlock x:Name="CountdownText"
+                       Text="60秒"
+                       FontSize="48"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Margin="0,8,0,0" />
+            <TextBlock x:Name="PreviewHintText"
+                       Text="プレビュー表示（警告音・シャットダウンは発生しません）"
+                       FontSize="12"
+                       Foreground="Orange"
+                       HorizontalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Visibility="Collapsed"
+                       Margin="0,12,0,0" />
+        </StackPanel>
+
+        <Grid Grid.Row="2" Margin="0,20,0,0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="ExecuteNowButton"
+                    Grid.Column="0"
+                    HorizontalAlignment="Stretch"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="ExecuteNowButton_Click" />
+            <Button x:Name="CancelButton"
+                    Grid.Column="1"
+                    HorizontalAlignment="Stretch"
+                    Click="CancelButton_Click" />
+        </Grid>
+    </Grid>
+</Window>

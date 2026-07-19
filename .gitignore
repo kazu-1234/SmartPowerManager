@@ -1,16 +1,35 @@
-# GitHubにアップロードしないファイル
-schedules.json
-__pycache__/
-*.pyc
-.vscode/
+# Build / IDE
+**/bin/
+**/obj/
+**/.vs/
+**/publish/
+**/release_artifacts/
+*.user
+*.suo
+*.pdb
+*.log
 
-# PyInstaller build artifacts
-build/
-# dist/
-*.spec
+# Local secrets / runtime data (絶対にコミットしない)
+**/schedules.json
+**/settings.json
+**/.show_signal
+**/config.h
+**/crash_log.txt
+**/debug.log
+**/error_log.txt
 
-dist/
-
-config.h
-SmartPowerManager_backup/
+# Backups / packaged binaries
+**/SmartPowerManager_backup/
+**/dist/
 *.exe
+*.zip
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Python
+**/__pycache__/
+*.pyc
+*.spec
