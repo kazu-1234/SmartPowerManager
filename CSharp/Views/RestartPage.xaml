@@ -14,10 +14,19 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <TextBlock x:Name="PageTitleText"
+            <TextBlock x:Name="TitleLayoutReserve"
                        Grid.Row="0"
                        Text="再起動"
-                       Style="{StaticResource PageTitleTextStyle}" />
+                       Style="{StaticResource PageTitleTextStyle}"
+                       Opacity="0"
+                       IsHitTestVisible="False" />
+
+            <!-- 表示タイトルのみ従来位置へ。Row 構成は変えずカード位置を維持 -->
+            <TextBlock x:Name="PageTitleText"
+                       Text="再起動"
+                       Style="{StaticResource SchedulePageTitleTextStyle}"
+                       VerticalAlignment="Top"
+                       HorizontalAlignment="Left" />
 
             <Grid x:Name="ScheduleSplitGrid"
                   Grid.Row="2"
