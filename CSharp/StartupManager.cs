@@ -17,23 +17,27 @@ public static class StartupManager
 
     public static bool IsAutoStartEnabled() => GetLogonTaskCommand() != null;
 
-    public static bool ApplyAutoStart(bool enable)
+    /// <summary>設定のオン／オフに合わせてタスク・レジストリ・スタートアップショートカットを同期する。</summary>
+    public static bool SyncAutostartWithSettings(bool enable)
     {
         if (!enable)
-            return RemoveLogonTask();
+        {
+            RemoveAllSmartPowerManagerAutostartTasks();
+            ConfigMigrationService.RemoveLegacyAutostartArtifacts();
+            return true;
+        }
 
-        ConfigMigrationService.RemovePythonRegistryAutostart();
-        return CreateLogonTask();
+        ConfigMigrationService.RemoveLegacyAutostartArtifacts();
+        bool created = CreateLogonTask();
+        RemoveForeignAutostartTasks();
+        return created;
     }
 
-    public static void ValidateAutoStart(bool autoStartEnabled)
-    {
-        if (!autoStartEnabled)
-            return;
+    /// <inheritdoc cref="SyncAutostartWithSettings"/>
+    public static bool ApplyAutoStart(bool enable) => SyncAutostartWithSettings(enable);
 
-        // コマンド不一致時だけでなく、優先度・Delay など設定更新のため再登録する
-        CreateLogonTask();
-    }
+    public static void ValidateAutoStart(bool autoStartEnabled) =>
+        SyncAutostartWithSettings(autoStartEnabled);
 
     public static string? GetRegisteredCommand() => GetLogonTaskCommand();
 
@@ -43,9 +47,15 @@ public static class StartupManager
             return;
 
         if (!IsAutoStartEnabled())
-            ApplyAutoStart(true);
+            SyncAutostartWithSettings(true);
         else
             ConfigMigrationService.RemovePythonRegistryAutostart();
+    }
+
+    /// <summary>アプリ削除前など、残存 exe から自動起動登録だけ除去する。</summary>
+    public static void CleanupAutostartOnly()
+    {
+        SyncAutostartWithSettings(false);
     }
 
     private static bool CreateLogonTask()
@@ -76,7 +86,6 @@ public static class StartupManager
             definition.Settings.StartWhenAvailable = true;
             definition.Settings.StopIfGoingOnBatteries = false;
             definition.Settings.IdleSettings.StopOnIdleEnd = false;
-            // ログオン直後の遅延を抑え、優先度をやや上げる
             definition.Settings.Priority = ProcessPriorityClass.AboveNormal;
             definition.Settings.AllowDemandStart = true;
             definition.Settings.MultipleInstances = TaskInstancesPolicy.IgnoreNew;
@@ -88,7 +97,6 @@ public static class StartupManager
             });
             definition.Actions.Add(new ExecAction(exePath, BackgroundArg, workingDir));
 
-            // 既存タスクがあっても上書き登録し、高速化設定を反映する
             folder.RegisterTaskDefinition(
                 LogonTaskName,
                 definition,
@@ -96,7 +104,6 @@ public static class StartupManager
                 null,
                 null,
                 TaskLogonType.InteractiveToken);
-            ConfigMigrationService.RemovePythonRegistryAutostart();
             return true;
         }
         catch (Exception ex)
@@ -106,19 +113,121 @@ public static class StartupManager
         }
     }
 
-    private static bool RemoveLogonTask()
+    private static void RemoveAllSmartPowerManagerAutostartTasks()
     {
         try
         {
             using TaskService taskService = new();
-            TaskFolder? folder = taskService.GetFolder(TaskFolder);
-            folder?.DeleteTask(LogonTaskName, false);
-            return true;
+            foreach (TaskFolder folder in GetSmartPowerManagerTaskFolders(taskService).ToList())
+            {
+                foreach (Microsoft.Win32.TaskScheduler.Task task in folder.GetTasks().ToList())
+                {
+                    if (!IsSmartPowerManagerAutostartTask(task))
+                        continue;
+
+                    try
+                    {
+                        folder.DeleteTask(task.Name, false);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                TryDeleteEmptyFolder(taskService, folder.Name);
+            }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Failed to remove logon task: {ex.Message}");
+            Debug.WriteLine($"Failed to remove logon tasks: {ex.Message}");
+        }
+    }
+
+    /// <summary>現行 exe 以外の SmartPowerManager 自動起動タスクを削除する。</summary>
+    private static void RemoveForeignAutostartTasks()
+    {
+        try
+        {
+            string currentExe = Path.GetFullPath(GetExecutablePath());
+            string currentFolder = TaskFolder;
+
+            using TaskService taskService = new();
+            foreach (TaskFolder folder in GetSmartPowerManagerTaskFolders(taskService).ToList())
+            {
+                foreach (Microsoft.Win32.TaskScheduler.Task task in folder.GetTasks().ToList())
+                {
+                    if (!IsSmartPowerManagerAutostartTask(task))
+                        continue;
+
+                    ExecAction? action = task.Definition.Actions.OfType<ExecAction>().FirstOrDefault();
+                    bool isCurrent =
+                        string.Equals(folder.Name, currentFolder, StringComparison.Ordinal) &&
+                        string.Equals(task.Name, LogonTaskName, StringComparison.Ordinal) &&
+                        action != null &&
+                        string.Equals(Path.GetFullPath(action.Path), currentExe, StringComparison.OrdinalIgnoreCase);
+
+                    if (isCurrent)
+                        continue;
+
+                    try
+                    {
+                        folder.DeleteTask(task.Name, false);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                TryDeleteEmptyFolder(taskService, folder.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to remove foreign logon tasks: {ex.Message}");
+        }
+    }
+
+    private static IEnumerable<TaskFolder> GetSmartPowerManagerTaskFolders(TaskService taskService)
+    {
+        foreach (TaskFolder folder in taskService.RootFolder.SubFolders)
+        {
+            if (folder.Name.StartsWith("SmartPowerManager", StringComparison.Ordinal))
+                yield return folder;
+        }
+    }
+
+    private static bool IsSmartPowerManagerAutostartTask(Microsoft.Win32.TaskScheduler.Task task)
+    {
+        if (string.Equals(task.Name, LogonTaskName, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        ExecAction? action = task.Definition.Actions.OfType<ExecAction>().FirstOrDefault();
+        return IsSmartPowerManagerAutostartAction(action);
+    }
+
+    private static bool IsSmartPowerManagerAutostartAction(ExecAction? action)
+    {
+        if (action == null)
             return false;
+
+        string path = action.Path ?? string.Empty;
+        string args = action.Arguments ?? string.Empty;
+        if (path.Contains("SmartPowerManager", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return args.Contains("SmartPowerManager", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void TryDeleteEmptyFolder(TaskService taskService, string folderName)
+    {
+        try
+        {
+            TaskFolder folder = taskService.GetFolder(folderName);
+            if (!folder.GetTasks().Any())
+                taskService.RootFolder.DeleteFolder(folderName, false);
+        }
+        catch
+        {
         }
     }
 

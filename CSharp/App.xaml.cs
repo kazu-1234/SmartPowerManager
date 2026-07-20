@@ -1,4 +1,4 @@
-﻿// v2.0.0
+﻿// v2.0.1
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
@@ -27,7 +27,19 @@ namespace SmartPowerManager
 
             ConfigMigrationService.MigrateIfNeeded();
             ConfigMigrationService.RunStartupCleanup();
+
+            if (HasCommandLineArg("--cleanup-autostart"))
+            {
+                StartupManager.CleanupAutostartOnly();
+                Exit();
+                return;
+            }
+
             StartupManager.MigrateFromPythonRegistryIfNeeded();
+
+            var settings = Settings.Load();
+            StartupManager.SyncAutostartWithSettings(settings.AutoStart);
+            settings.Save();
 
             bool launchInBackground = HasCommandLineArg("--background");
             bool requestInteractiveShow = !launchInBackground;
@@ -37,11 +49,6 @@ namespace SmartPowerManager
                 Exit();
                 return;
             }
-
-            var settings = Settings.Load();
-            if (StartupManager.IsAutoStartEnabled())
-                settings.AutoStart = true;
-            settings.Save();
 
             ThemeService.Initialize(settings.ThemePreference);
 

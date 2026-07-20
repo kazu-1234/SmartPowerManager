@@ -79,7 +79,7 @@ public sealed partial class MainWindow : Window
 
         WireExecutorEvents();
 
-        StartupManager.ValidateAutoStart(_settings.AutoStart);
+        StartupManager.SyncAutostartWithSettings(_settings.AutoStart);
 
         AppWindow.Closing += AppWindow_Closing;
         AppWindow.Changed += AppWindow_Changed;
@@ -470,6 +470,8 @@ public sealed partial class MainWindow : Window
         _debuggerDetachTimer = null;
 #endif
         SaveWindowBounds();
+        if (!_settings.AutoStart)
+            StartupManager.SyncAutostartWithSettings(false);
         _executor.Dispose();
         _trayMessageWindow?.Dispose();
         SingleInstanceManager.Release();
@@ -492,6 +494,8 @@ public sealed partial class MainWindow : Window
 
         _isExiting = true;
         SaveWindowBounds();
+        if (!_settings.AutoStart)
+            StartupManager.SyncAutostartWithSettings(false);
         _executor.Dispose();
         _trayMessageWindow?.Dispose();
         SingleInstanceManager.Release();
@@ -541,7 +545,6 @@ public sealed partial class MainWindow : Window
             "Restart" => typeof(RestartPage),
             "Wake" => typeof(WakePage),
             "Settings" => typeof(SettingsPage),
-            "Update" => typeof(UpdatePage),
             "Info" => typeof(InfoPage),
             _ => typeof(ShutdownPage)
         };

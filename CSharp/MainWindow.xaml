@@ -26,11 +26,6 @@
                         <FontIcon Glyph="&#xE768;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Uid="Nav_Update" Tag="Update">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE895;" FontFamily="{ThemeResource SymbolThemeFontFamily}" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
             </NavigationView.MenuItems>
             <NavigationView.FooterMenuItems>
                 <NavigationViewItem x:Uid="Nav_Info" Tag="Info">

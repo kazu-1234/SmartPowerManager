@@ -64,17 +64,6 @@
                     </StackPanel>
                 </controls:SettingsCard.Description>
             </controls:SettingsCard>
-
-            <controls:SettingsCard>
-                <controls:SettingsCard.Header>
-                    <TextBlock Text="免責事項" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                </controls:SettingsCard.Header>
-                <controls:SettingsCard.Description>
-                    <TextBlock Text="本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。"
-                               Style="{StaticResource BodyTextBlockStyle}"
-                               TextWrapping="Wrap" />
-                </controls:SettingsCard.Description>
-            </controls:SettingsCard>
         </StackPanel>
     </views:PageScrollHost>
 </Page>

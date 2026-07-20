@@ -10,14 +10,30 @@
 
             <controls:SettingsCard>
                 <controls:SettingsCard.Header>
-                    <TextBlock Text="アプリについて" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="アップデート" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock x:Name="VersionText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Text="GitHub Releases から更新を確認します" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
                 </controls:SettingsCard.Header>
-                <StackPanel Spacing="8">
-                    <TextBlock x:Name="VersionText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                    <TextBlock Text="PC のシャットダウン・再起動スケジュール管理と Pico W / GAS 経由の WoL 遠隔起動を行います。"
-                               Style="{StaticResource BodyTextBlockStyle}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
+                <Button x:Name="CheckUpdateButton"
+                        Content="アップデートを確認"
+                        Style="{StaticResource PrimaryActionButtonStyle}"
+                        Click="CheckUpdateButton_Click" />
+            </controls:SettingsCard>
+
+            <InfoBar x:Name="UpdateInfoBar" IsOpen="False" IsClosable="True" />
+
+            <controls:SettingsCard x:Name="InstallUpdateCard" Visibility="Collapsed">
+                <controls:SettingsCard.Description>
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Name="InstallStatusText" TextWrapping="Wrap" />
+                        <Button x:Name="InstallUpdateButton"
+                                Content="ダウンロードしてインストール"
+                                Style="{StaticResource PrimaryActionButtonStyle}"
+                                Click="InstallUpdateButton_Click" />
+                    </StackPanel>
+                </controls:SettingsCard.Description>
             </controls:SettingsCard>
 
             <controls:SettingsCard>

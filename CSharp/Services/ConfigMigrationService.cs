@@ -29,6 +29,14 @@ public static class ConfigMigrationService
         CleanManualStartupShortcuts();
         CleanOldUpdateFiles();
         CleanupLegacyBat();
+        RemovePythonRegistryAutostart();
+    }
+
+    /// <summary>Python 版レジストリ Run とスタートアップフォルダのショートカットを削除する。</summary>
+    public static void RemoveLegacyAutostartArtifacts()
+    {
+        RemovePythonRegistryAutostart();
+        CleanManualStartupShortcuts();
     }
 
     private static void CleanManualStartupShortcuts()

@@ -108,7 +108,7 @@ public sealed partial class SettingsPage : Page
             return;
 
         bool requested = AutoStartToggle.IsOn;
-        bool ok = StartupManager.ApplyAutoStart(requested);
+        bool ok = StartupManager.SyncAutostartWithSettings(requested);
         if (!ok && requested)
         {
             _isInitializing = true;
