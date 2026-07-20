@@ -1,4 +1,5 @@
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
 using System;
@@ -16,6 +17,7 @@ namespace SmartPowerManager
     public sealed class AppRuntime : IDisposable
     {
         private readonly Application _app;
+        private readonly DispatcherQueue _uiDispatcher;
         private readonly Settings _settings;
         private readonly ScheduleManager _scheduleManager;
         private readonly SyncCoordinatorService _syncCoordinator;
@@ -36,18 +38,20 @@ namespace SmartPowerManager
         public AppRuntime(Application app, Settings settings)
         {
             _app = app;
+            // 二重起動リスナーは BG スレッドから来るため、UI Dispatcher を起動時に保持する
+            _uiDispatcher = DispatcherQueue.GetForCurrentThread()
+                ?? throw new InvalidOperationException("AppRuntime must be created on the UI thread.");
             _settings = settings;
             _scheduleManager = new ScheduleManager();
             _syncCoordinator = new SyncCoordinatorService();
             _appState = new AppState(_settings, _scheduleManager, _syncCoordinator);
 
-            var dq = DispatcherQueue.GetForCurrentThread();
-            _confirmationDialog = new ConfirmationDialogService(dq);
+            _confirmationDialog = new ConfirmationDialogService(_uiDispatcher);
             _executor = new ScheduleExecutorService(
                 _scheduleManager,
                 _syncCoordinator,
                 _confirmationDialog,
-                dq,
+                _uiDispatcher,
                 _settings);
             _appState.Executor = _executor;
             _appState.ApplyTrayIconVisibility = ApplyTrayIconVisibility;
@@ -293,25 +297,30 @@ namespace SmartPowerManager
         }
 #endif
 
-        private DispatcherQueue? GetDispatcherQueue()
-        {
-            try
-            {
-                return DispatcherQueue.GetForCurrentThread();
-            }
-            catch
-            {
-                return null;
-            }
-        }
+        private DispatcherQueue GetDispatcherQueue() => _uiDispatcher;
 
         private static void BringWindowToForeground(Window window)
         {
-            window.AppWindow.IsShownInSwitchers = true;
-            window.Activate();
-            IntPtr hwnd = WindowNative.GetWindowHandle(window);
-            if (hwnd != IntPtr.Zero)
-                PInvokeHelper.SetForegroundWindow(hwnd);
+            try
+            {
+                if (window.AppWindow.Presenter is OverlappedPresenter presenter
+                    && presenter.State == OverlappedPresenterState.Minimized)
+                {
+                    presenter.Restore();
+                }
+
+                window.AppWindow.IsShownInSwitchers = true;
+                window.AppWindow.Show();
+                window.Activate();
+
+                IntPtr hwnd = WindowNative.GetWindowHandle(window);
+                if (hwnd != IntPtr.Zero)
+                    PInvokeHelper.SetForegroundWindow(hwnd);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"BringWindowToForeground failed: {ex.Message}");
+            }
         }
     }
 }

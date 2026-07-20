@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace SmartPowerManager.Services;
 
@@ -17,6 +18,8 @@ internal static class SingleInstanceManager
     private static Mutex? _mutex;
     private static EventWaitHandle? _interactiveShowEvent;
     private static EventWaitHandle? _exitEvent;
+
+    private static string PidFilePath => Path.Combine(AppPaths.AppDataDirectory, ".instance_pid");
 
     public static bool TryBecomePrimaryInstance(bool requestInteractiveShow)
     {
@@ -38,6 +41,7 @@ internal static class SingleInstanceManager
             EventResetMode.AutoReset,
             ExitEventName);
 
+        TryWritePidFile();
         return true;
     }
 
@@ -46,6 +50,8 @@ internal static class SingleInstanceManager
 
     public static void SignalInteractiveShow()
     {
+        TryAllowForegroundForPrimary();
+
         bool signaled = false;
         try
         {
@@ -88,6 +94,8 @@ internal static class SingleInstanceManager
 
     public static void Release()
     {
+        TryDeletePidFile();
+
         _interactiveShowEvent?.Dispose();
         _interactiveShowEvent = null;
         _exitEvent?.Dispose();
@@ -100,4 +108,49 @@ internal static class SingleInstanceManager
             _mutex = null;
         }
     }
+
+    private static void TryWritePidFile()
+    {
+        try
+        {
+            if (!Directory.Exists(AppPaths.AppDataDirectory))
+                Directory.CreateDirectory(AppPaths.AppDataDirectory);
+            File.WriteAllText(PidFilePath, Environment.ProcessId.ToString());
+        }
+        catch
+        {
+        }
+    }
+
+    private static void TryDeletePidFile()
+    {
+        try
+        {
+            if (File.Exists(PidFilePath))
+                File.Delete(PidFilePath);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void TryAllowForegroundForPrimary()
+    {
+        try
+        {
+            if (!File.Exists(PidFilePath))
+                return;
+
+            if (!int.TryParse(File.ReadAllText(PidFilePath).Trim(), out int pid))
+                return;
+
+            AllowSetForegroundWindow(pid);
+        }
+        catch
+        {
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int dwProcessId);
 }
