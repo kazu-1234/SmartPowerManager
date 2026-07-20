@@ -11,12 +11,17 @@
         <ControlTemplate TargetType="views:PageScrollHost">
             <ScrollViewer x:Name="PART_ScrollViewer"
                           Style="{StaticResource PageHostScrollViewerStyle}">
-                <ContentPresenter x:Name="PART_ContentPresenter"
-                                  HorizontalAlignment="Stretch"
-                                  VerticalAlignment="Top"
-                                  HorizontalContentAlignment="Stretch"
-                                  Content="{TemplateBinding Content}"
-                                  ContentTemplate="{TemplateBinding ContentTemplate}" />
+                <!-- Grid でビューポート幅を確定させ、子の SettingsCard 横幅を揃える -->
+                <Grid x:Name="PART_ContentHost"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Top">
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Top"
+                                      HorizontalContentAlignment="Stretch"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}" />
+                </Grid>
             </ScrollViewer>
         </ControlTemplate>
     </ContentControl.Template>

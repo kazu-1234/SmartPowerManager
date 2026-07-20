@@ -10,9 +10,9 @@
 
             <TextBlock x:Uid="Info_SectionUpdate" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
 
-            <controls:SettingsCard>
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4" MinWidth="0">
+                    <StackPanel Spacing="4" MinWidth="0" HorizontalAlignment="Stretch">
                         <TextBlock x:Name="VersionText" Style="{StaticResource CardHeaderTextStyle}" />
                         <TextBlock x:Uid="Info_UpdateDesc" Style="{StaticResource CardDescriptionTextStyle}" />
                     </StackPanel>
@@ -22,11 +22,11 @@
                         Click="CheckUpdateButton_Click" />
             </controls:SettingsCard>
 
-            <InfoBar x:Name="UpdateInfoBar" IsOpen="False" IsClosable="True" />
+            <InfoBar x:Name="UpdateInfoBar" IsOpen="False" IsClosable="True" HorizontalAlignment="Stretch" />
 
-            <controls:SettingsCard x:Name="InstallUpdateCard" Visibility="Collapsed">
+            <controls:SettingsCard x:Name="InstallUpdateCard" Visibility="Collapsed" HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Description>
-                    <StackPanel Spacing="8">
+                    <StackPanel Spacing="8" HorizontalAlignment="Stretch" MinWidth="0">
                         <TextBlock x:Name="InstallStatusText" TextWrapping="Wrap" />
                         <Button x:Name="InstallUpdateButton"
                                 x:Uid="Info_InstallUpdate"
@@ -37,9 +37,9 @@
             </controls:SettingsCard>
 
             <TextBlock x:Uid="Info_SectionDisclaimer" Style="{StaticResource SettingsSectionHeaderStyle}" />
-            <controls:SettingsCard>
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Description>
-                    <StackPanel Spacing="8">
+                    <StackPanel Spacing="8" HorizontalAlignment="Stretch" MinWidth="0">
                         <TextBlock x:Uid="Info_AboutDescription" Style="{StaticResource CardDescriptionTextStyle}" />
                         <TextBlock x:Uid="Info_DisclaimerText" TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
                     </StackPanel>

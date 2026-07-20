@@ -28,11 +28,13 @@
                 <Setter Property="VerticalContentAlignment" Value="Top" />
             </Style>
 
+            <!-- 情報・設定共通: 親幅いっぱいに伸ばし MaxWidth で上限（カード横幅を統一） -->
             <Style x:Key="PageBaseStackPanelStyle" TargetType="StackPanel">
                 <Setter Property="MaxWidth" Value="{StaticResource UtilityPageMaxWidth}" />
                 <Setter Property="Margin" Value="24,0,24,24" />
                 <Setter Property="Spacing" Value="{StaticResource SettingsCardSpacing}" />
                 <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="MinWidth" Value="0" />
             </Style>
 
             <Style x:Key="SchedulePageStackPanelStyle" TargetType="StackPanel">

@@ -9,6 +9,7 @@ namespace SmartPowerManager.Views
     {
         private ScrollViewer? _scrollViewer;
         private ContentPresenter? _contentPresenter;
+        private Grid? _contentHost;
         private FrameworkElement? _contentRoot;
         private bool _scrollEnabled;
         private bool _updateScheduled;
@@ -24,6 +25,7 @@ namespace SmartPowerManager.Views
         {
             _scrollViewer = GetTemplateChild("PART_ScrollViewer") as ScrollViewer;
             _contentPresenter = GetTemplateChild("PART_ContentPresenter") as ContentPresenter;
+            _contentHost = GetTemplateChild("PART_ContentHost") as Grid;
             if (_scrollViewer != null)
             {
                 _scrollViewer.SizeChanged += (_, __) => ScheduleUpdateScrollability();
@@ -99,6 +101,9 @@ namespace SmartPowerManager.Views
             if (_scrollViewer == null)
                 return;
 
+            // ビューポート幅をコンテンツに渡し、SettingsCard がコンテンツ幅で縮まないようにする
+            SyncContentHostWidth();
+
             _scrollViewer.UpdateLayout();
             _contentRoot?.UpdateLayout();
 
@@ -113,12 +118,30 @@ namespace SmartPowerManager.Views
                 if (_scrollViewer == null)
                     return;
 
+                SyncContentHostWidth();
+
                 bool needsScrollAfterLayout = ComputeNeedsScroll();
                 ApplyScrollState(needsScrollAfterLayout);
 
                 if (!needsScrollAfterLayout && _scrollViewer.VerticalOffset > 0)
                     _scrollViewer.ChangeView(null, 0, null, disableAnimation: true);
             });
+        }
+
+        /// <summary>
+        /// ScrollViewer 直下のコンテンツが子の希望幅で縮むのを防ぎ、情報・設定の枠幅を揃える。
+        /// </summary>
+        private void SyncContentHostWidth()
+        {
+            if (_scrollViewer == null)
+                return;
+
+            double viewportWidth = _scrollViewer.ViewportWidth;
+            if (viewportWidth <= 0)
+                return;
+
+            if (_contentHost != null && Math.Abs(_contentHost.Width - viewportWidth) > 0.5)
+                _contentHost.Width = viewportWidth;
         }
 
         private bool ComputeNeedsScroll()

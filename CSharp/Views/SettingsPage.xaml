@@ -10,9 +10,10 @@
 
             <TextBlock x:Uid="Settings_SectionAppearanceLabel" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
 
-            <controls:SettingsCard>
+            <!-- 情報ページ同様、全 SettingsCard を横幅 Stretch で揃える -->
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4" MinWidth="0">
+                    <StackPanel Spacing="4" MinWidth="0" HorizontalAlignment="Stretch">
                         <TextBlock x:Uid="Settings_ThemeLabel" Style="{StaticResource CardHeaderTextStyle}" />
                         <TextBlock x:Uid="Settings_ThemeDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
                     </StackPanel>
@@ -22,9 +23,9 @@
 
             <TextBlock x:Uid="Settings_SectionStartupLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-            <controls:SettingsCard>
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4" MinWidth="0">
+                    <StackPanel Spacing="4" MinWidth="0" HorizontalAlignment="Stretch">
                         <TextBlock x:Uid="Settings_AutoStartLabel" Style="{StaticResource CardHeaderTextStyle}" />
                         <TextBlock x:Uid="Settings_AutoStartDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
                     </StackPanel>
@@ -32,9 +33,9 @@
                 <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
             </controls:SettingsCard>
 
-            <controls:SettingsCard>
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Description>
-                    <StackPanel Spacing="8">
+                    <StackPanel Spacing="8" HorizontalAlignment="Stretch" MinWidth="0">
                         <TextBlock x:Uid="Settings_AutostartModeLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock x:Name="AutostartModeText" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
                         <TextBlock x:Uid="Settings_AutostartPathLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -43,7 +44,7 @@
                 </controls:SettingsCard.Description>
             </controls:SettingsCard>
 
-            <controls:SettingsCard>
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Header>
                     <CheckBox x:Name="HideTrayIconCheckBox"
                               x:Uid="Settings_HideTrayIcon"
@@ -55,18 +56,18 @@
 
             <TextBlock x:Uid="Settings_SectionDeviceLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-            <controls:SettingsCard>
+            <controls:SettingsCard HorizontalAlignment="Stretch">
                 <controls:SettingsCard.Description>
-                    <StackPanel Spacing="12">
-                        <TextBox x:Name="PicoIpTextBox" Header="Pico W IP Address" PlaceholderText="192.168.10.x" />
+                    <StackPanel Spacing="12" HorizontalAlignment="Stretch" MinWidth="0">
+                        <TextBox x:Name="PicoIpTextBox" Header="Pico W IP Address" PlaceholderText="192.168.10.x" HorizontalAlignment="Stretch" />
                         <Button Content="Pico W 設定画面をブラウザで開く" Style="{StaticResource SecondaryActionButtonStyle}" Click="OpenPicoWebButton_Click" />
-                        <TextBox x:Name="GasUrlTextBox" Header="GAS Webhook URL" PlaceholderText="https://script.google.com/..." />
-                        <StackPanel Spacing="8">
+                        <TextBox x:Name="GasUrlTextBox" Header="GAS Webhook URL" PlaceholderText="https://script.google.com/..." HorizontalAlignment="Stretch" />
+                        <StackPanel Spacing="8" HorizontalAlignment="Stretch">
                             <TextBlock Text="GAS 起動対象 PC" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                             <RadioButton x:Name="GasDesktopRadio" Content="デスクトップPC" GroupName="GasTarget" />
                             <RadioButton x:Name="GasServerRadio" Content="サーバーPC" GroupName="GasTarget" />
                         </StackPanel>
-                        <ComboBox x:Name="MacComboBox" Header="起動対象 MAC アドレス" HorizontalAlignment="Stretch" />
+                        <ComboBox x:Name="MacComboBox" Header="起動対象 MAC アドレス" HorizontalAlignment="Stretch" MinWidth="0" />
                         <Button Content="MAC アドレスを再検出" Style="{StaticResource SecondaryActionButtonStyle}" Click="RefreshMacButton_Click" />
                     </StackPanel>
                 </controls:SettingsCard.Description>
