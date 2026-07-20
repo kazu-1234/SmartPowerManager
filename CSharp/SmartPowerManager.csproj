@@ -17,6 +17,12 @@
     <ApplicationDefaultLanguage>ja-JP</ApplicationDefaultLanguage>
     <Version>2.0.1</Version>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- 配布用単一 exe（dotnet publish 時）に必要な WinUI unpackaged 設定 -->
+    <SelfContained Condition="'$(PublishSingleFile)' == 'true'">true</SelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <IncludeAllContentForSelfExtract Condition="'$(PublishSingleFile)' == 'true'">true</IncludeAllContentForSelfExtract>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(PublishSingleFile)' == 'true'">true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(PublishSingleFile)' == 'true'">true</EnableCompressionInSingleFile>
     <DefineConstants>DISABLE_XAML_GENERATED_MAIN;DISABLE_XAML_GENERATED_BREAK_ON_UNHANDLED_EXCEPTION</DefineConstants>
   </PropertyGroup>
   <ItemGroup>

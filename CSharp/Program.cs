@@ -10,6 +10,11 @@ namespace SmartPowerManager
         [STAThread]
         static void Main(string[] args)
         {
+            // 単一ファイル展開先を Windows App SDK に伝える（unpackaged self-contained 必須）
+            Environment.SetEnvironmentVariable(
+                "MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY",
+                AppContext.BaseDirectory);
+
             WinRT.ComWrappersSupport.InitializeComWrappers();
             Application.Start(_ =>
             {
