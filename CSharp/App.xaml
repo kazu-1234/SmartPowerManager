@@ -54,9 +54,10 @@
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
             </Style>
 
-            <!-- スケジュール系の表示用タイトル。旧 PageHost 上余白(12) 分を足して従来位置に戻す -->
-            <Style x:Key="SchedulePageTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource PageTitleTextStyle}">
-                <Setter Property="Margin" Value="0,32,0,12" />
+            <!-- スケジュール系: カード直上配置用（余白は Translate で確保） -->
+            <Style x:Key="SchedulePageTitleAboveCardsStyle" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}">
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
             </Style>
 
             <Style x:Key="CardHeaderTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">

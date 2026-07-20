@@ -15,6 +15,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
+            <!-- カード位置維持用の高さ確保（非表示・従来タイトル分） -->
             <TextBlock x:Name="TitleLayoutReserve"
                        Grid.Row="0"
                        Text="シャットダウン"
@@ -22,18 +23,11 @@
                        Opacity="0"
                        IsHitTestVisible="False" />
 
-            <!-- 表示タイトルのみ従来位置へ。Row 構成は変えずカード位置を維持 -->
-            <TextBlock x:Name="PageTitleText"
-                       Text="シャットダウン"
-                       Style="{StaticResource SchedulePageTitleTextStyle}"
-                       VerticalAlignment="Top"
-                       HorizontalAlignment="Left" />
-
-            <Grid x:Name="ScheduleSplitGrid"
-                  Grid.Row="2"
-                  ColumnSpacing="12"
-                  RowSpacing="12"
-                  VerticalAlignment="Top">
+            <Grid Grid.Row="2">
+                <Grid x:Name="ScheduleSplitGrid"
+                      ColumnSpacing="12"
+                      RowSpacing="12"
+                      VerticalAlignment="Top">
                 <VisualStateManager.VisualStateGroups>
                     <VisualStateGroup x:Name="SplitStates">
                         <VisualState x:Name="Wide">
@@ -209,6 +203,18 @@
                 <views:UpcomingSchedulePanel x:Name="RightCard"
                                              Grid.Column="1"
                                              FontSize="15" />
+                </Grid>
+
+                <!-- カード直上に描画（Translate でレイアウト非干渉） -->
+                <TextBlock x:Name="PageTitleText"
+                           Text="シャットダウン"
+                           Style="{StaticResource SchedulePageTitleAboveCardsStyle}"
+                           VerticalAlignment="Top"
+                           HorizontalAlignment="Left">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform Y="0" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
             </Grid>
         </Grid>
     </views:PageScrollHost>
