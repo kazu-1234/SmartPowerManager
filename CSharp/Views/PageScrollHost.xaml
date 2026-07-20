@@ -11,8 +11,7 @@
         <ControlTemplate TargetType="views:PageScrollHost">
             <ScrollViewer x:Name="PART_ScrollViewer"
                           Style="{StaticResource PageHostScrollViewerStyle}">
-                <ContentPresenter x:Name="PART_ContentPresenter"
-                                  HorizontalAlignment="Stretch"
+                <ContentPresenter HorizontalAlignment="Stretch"
                                   VerticalAlignment="Top"
                                   HorizontalContentAlignment="Stretch"
                                   Content="{TemplateBinding Content}"

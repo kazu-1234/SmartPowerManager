@@ -3,75 +3,78 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:views="using:SmartPowerManager.Views">
+    xmlns:views="using:SmartPowerManager.Views"
+    HorizontalAlignment="Stretch"
+    VerticalAlignment="Stretch">
     <views:PageScrollHost>
-        <StackPanel Style="{StaticResource PageBaseStackPanelStyle}">
-            <TextBlock x:Uid="Page_Settings" Style="{StaticResource PageTitleTextStyle}" />
+        <Grid>
+            <StackPanel Style="{StaticResource PageBaseStackPanelStyle}">
+                <TextBlock x:Uid="Page_Settings" Style="{StaticResource PageTitleTextStyle}" />
 
-            <TextBlock x:Uid="Settings_SectionAppearanceLabel" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
+                <TextBlock x:Uid="Settings_SectionAppearanceLabel" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
 
-            <!-- 情報ページ同様、全 SettingsCard を横幅 Stretch で揃える -->
-            <controls:SettingsCard HorizontalAlignment="Stretch">
-                <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4" MinWidth="0" HorizontalAlignment="Stretch">
-                        <TextBlock x:Uid="Settings_ThemeLabel" Style="{StaticResource CardHeaderTextStyle}" />
-                        <TextBlock x:Uid="Settings_ThemeDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
-                    </StackPanel>
-                </controls:SettingsCard.Header>
-                <ComboBox x:Name="ThemeComboBox" Style="{StaticResource CompactComboBoxStyle}" SelectionChanged="ThemeComboBox_SelectionChanged" />
-            </controls:SettingsCard>
-
-            <TextBlock x:Uid="Settings_SectionStartupLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
-
-            <controls:SettingsCard HorizontalAlignment="Stretch">
-                <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4" MinWidth="0" HorizontalAlignment="Stretch">
-                        <TextBlock x:Uid="Settings_AutoStartLabel" Style="{StaticResource CardHeaderTextStyle}" />
-                        <TextBlock x:Uid="Settings_AutoStartDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
-                    </StackPanel>
-                </controls:SettingsCard.Header>
-                <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
-            </controls:SettingsCard>
-
-            <controls:SettingsCard HorizontalAlignment="Stretch">
-                <controls:SettingsCard.Description>
-                    <StackPanel Spacing="8" HorizontalAlignment="Stretch" MinWidth="0">
-                        <TextBlock x:Uid="Settings_AutostartModeLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <TextBlock x:Name="AutostartModeText" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
-                        <TextBlock x:Uid="Settings_AutostartPathLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <TextBlock x:Name="AutostartPathText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                    </StackPanel>
-                </controls:SettingsCard.Description>
-            </controls:SettingsCard>
-
-            <controls:SettingsCard HorizontalAlignment="Stretch">
-                <controls:SettingsCard.Header>
-                    <CheckBox x:Name="HideTrayIconCheckBox"
-                              x:Uid="Settings_HideTrayIcon"
-                              VerticalAlignment="Center"
-                              Checked="HideTrayIconCheckBox_Changed"
-                              Unchecked="HideTrayIconCheckBox_Changed" />
-                </controls:SettingsCard.Header>
-            </controls:SettingsCard>
-
-            <TextBlock x:Uid="Settings_SectionDeviceLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
-
-            <controls:SettingsCard HorizontalAlignment="Stretch">
-                <controls:SettingsCard.Description>
-                    <StackPanel Spacing="12" HorizontalAlignment="Stretch" MinWidth="0">
-                        <TextBox x:Name="PicoIpTextBox" Header="Pico W IP Address" PlaceholderText="192.168.10.x" HorizontalAlignment="Stretch" />
-                        <Button Content="Pico W 設定画面をブラウザで開く" Style="{StaticResource SecondaryActionButtonStyle}" Click="OpenPicoWebButton_Click" />
-                        <TextBox x:Name="GasUrlTextBox" Header="GAS Webhook URL" PlaceholderText="https://script.google.com/..." HorizontalAlignment="Stretch" />
-                        <StackPanel Spacing="8" HorizontalAlignment="Stretch">
-                            <TextBlock Text="GAS 起動対象 PC" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                            <RadioButton x:Name="GasDesktopRadio" Content="デスクトップPC" GroupName="GasTarget" />
-                            <RadioButton x:Name="GasServerRadio" Content="サーバーPC" GroupName="GasTarget" />
+                <controls:SettingsCard>
+                    <controls:SettingsCard.Header>
+                        <StackPanel Spacing="4" MinWidth="0">
+                            <TextBlock x:Uid="Settings_ThemeLabel" Style="{StaticResource CardHeaderTextStyle}" />
+                            <TextBlock x:Uid="Settings_ThemeDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
                         </StackPanel>
-                        <ComboBox x:Name="MacComboBox" Header="起動対象 MAC アドレス" HorizontalAlignment="Stretch" MinWidth="0" />
-                        <Button Content="MAC アドレスを再検出" Style="{StaticResource SecondaryActionButtonStyle}" Click="RefreshMacButton_Click" />
-                    </StackPanel>
-                </controls:SettingsCard.Description>
-            </controls:SettingsCard>
-        </StackPanel>
+                    </controls:SettingsCard.Header>
+                    <ComboBox x:Name="ThemeComboBox" Style="{StaticResource CompactComboBoxStyle}" SelectionChanged="ThemeComboBox_SelectionChanged" />
+                </controls:SettingsCard>
+
+                <TextBlock x:Uid="Settings_SectionStartupLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+                <controls:SettingsCard>
+                    <controls:SettingsCard.Header>
+                        <StackPanel Spacing="4" MinWidth="0">
+                            <TextBlock x:Uid="Settings_AutoStartLabel" Style="{StaticResource CardHeaderTextStyle}" />
+                            <TextBlock x:Uid="Settings_AutoStartDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
+                        </StackPanel>
+                    </controls:SettingsCard.Header>
+                    <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard>
+                    <controls:SettingsCard.Description>
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Uid="Settings_AutostartModeLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="AutostartModeText" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
+                            <TextBlock x:Uid="Settings_AutostartPathLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="AutostartPathText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        </StackPanel>
+                    </controls:SettingsCard.Description>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard>
+                    <controls:SettingsCard.Header>
+                        <CheckBox x:Name="HideTrayIconCheckBox"
+                                  x:Uid="Settings_HideTrayIcon"
+                                  VerticalAlignment="Center"
+                                  Checked="HideTrayIconCheckBox_Changed"
+                                  Unchecked="HideTrayIconCheckBox_Changed" />
+                    </controls:SettingsCard.Header>
+                </controls:SettingsCard>
+
+                <TextBlock x:Uid="Settings_SectionDeviceLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+                <controls:SettingsCard>
+                    <controls:SettingsCard.Description>
+                        <StackPanel Spacing="12">
+                            <TextBox x:Name="PicoIpTextBox" Header="Pico W IP Address" PlaceholderText="192.168.10.x" />
+                            <Button Content="Pico W 設定画面をブラウザで開く" Style="{StaticResource SecondaryActionButtonStyle}" Click="OpenPicoWebButton_Click" />
+                            <TextBox x:Name="GasUrlTextBox" Header="GAS Webhook URL" PlaceholderText="https://script.google.com/..." />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="GAS 起動対象 PC" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                <RadioButton x:Name="GasDesktopRadio" Content="デスクトップPC" GroupName="GasTarget" />
+                                <RadioButton x:Name="GasServerRadio" Content="サーバーPC" GroupName="GasTarget" />
+                            </StackPanel>
+                            <ComboBox x:Name="MacComboBox" Header="起動対象 MAC アドレス" HorizontalAlignment="Stretch" />
+                            <Button Content="MAC アドレスを再検出" Style="{StaticResource SecondaryActionButtonStyle}" Click="RefreshMacButton_Click" />
+                        </StackPanel>
+                    </controls:SettingsCard.Description>
+                </controls:SettingsCard>
+            </StackPanel>
+        </Grid>
     </views:PageScrollHost>
 </Page>

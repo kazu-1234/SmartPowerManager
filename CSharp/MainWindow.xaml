@@ -8,7 +8,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Auto Dark Mode と同じ WinUI TitleBar（カスタム Grid + 余白列は使わない） -->
+        <!-- Auto Dark Mode / BlueShift と同じ WinUI TitleBar -->
         <TitleBar x:Name="AppTitleBar"
                   Grid.Row="0"
                   Title="SmartPowerManager">
@@ -55,27 +55,17 @@
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>
             <NavigationView.Content>
-                <Grid x:Name="ContentAreaGrid"
-                      HorizontalAlignment="Stretch"
-                      VerticalAlignment="Stretch">
-                    <Grid x:Name="PageHostGrid"
-                          MinWidth="{StaticResource PageHostMinWidth}"
-                          MaxWidth="{StaticResource PageHostMaxWidth}"
-                          Margin="{StaticResource PageHostMargin}"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Stretch">
-                        <Frame x:Name="ContentFrame"
-                               Padding="0"
-                               HorizontalAlignment="Stretch"
-                               VerticalAlignment="Stretch"
-                               HorizontalContentAlignment="Stretch"
-                               VerticalContentAlignment="Stretch">
-                            <Frame.ContentTransitions>
-                                <TransitionCollection />
-                            </Frame.ContentTransitions>
-                        </Frame>
-                    </Grid>
-                </Grid>
+                <!-- BlueShift 同様: 中央ホストなしで Frame を直接配置 -->
+                <Frame x:Name="ContentFrame"
+                       Padding="0"
+                       HorizontalAlignment="Stretch"
+                       VerticalAlignment="Stretch"
+                       HorizontalContentAlignment="Stretch"
+                       VerticalContentAlignment="Stretch">
+                    <Frame.ContentTransitions>
+                        <TransitionCollection />
+                    </Frame.ContentTransitions>
+                </Frame>
             </NavigationView.Content>
         </NavigationView>
     </Grid>
