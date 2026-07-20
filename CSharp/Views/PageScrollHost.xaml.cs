@@ -26,6 +26,8 @@ namespace SmartPowerManager.Views
             _contentPresenter = GetTemplateChild("PART_ContentPresenter") as ContentPresenter;
             if (_scrollViewer != null)
             {
+                // ガター常時確保。ページごとに Auto/Hidden を切り替えると左右にずれる
+                _scrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Visible;
                 _scrollViewer.SizeChanged += (_, __) => ScheduleUpdateScrollability();
                 _scrollViewer.PointerWheelChanged += ScrollViewer_PointerWheelChanged;
             }
@@ -71,12 +73,15 @@ namespace SmartPowerManager.Views
 
         private void ContentRoot_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            // 幅変化だけの再計測は左右ジャンプの原因になるので、高さ変化時のみ
+            if (Math.Abs(e.PreviousSize.Height - e.NewSize.Height) < 0.5)
+                return;
+
             ScheduleUpdateScrollability();
         }
 
         private void ScrollViewer_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
         {
-            // 見切れていないときはホイールでもスクロールしない
             if (!_scrollEnabled)
                 e.Handled = true;
         }
@@ -99,26 +104,11 @@ namespace SmartPowerManager.Views
             if (_scrollViewer == null)
                 return;
 
-            _scrollViewer.UpdateLayout();
-            _contentRoot?.UpdateLayout();
-
             bool needsScroll = ComputeNeedsScroll();
             ApplyScrollState(needsScroll);
 
             if (!needsScroll && _scrollViewer.VerticalOffset > 0)
                 _scrollViewer.ChangeView(null, 0, null, disableAnimation: true);
-
-            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
-            {
-                if (_scrollViewer == null)
-                    return;
-
-                bool needsScrollAfterLayout = ComputeNeedsScroll();
-                ApplyScrollState(needsScrollAfterLayout);
-
-                if (!needsScrollAfterLayout && _scrollViewer.VerticalOffset > 0)
-                    _scrollViewer.ChangeView(null, 0, null, disableAnimation: true);
-            });
         }
 
         private bool ComputeNeedsScroll()
@@ -134,9 +124,6 @@ namespace SmartPowerManager.Views
             return contentHeight > viewportHeight + 1.0;
         }
 
-        /// <summary>
-        /// MinHeight でビューポートに引き伸ばしているだけの余白は、スクロール判定に使わない。
-        /// </summary>
         private double MeasureNaturalContentHeight(double viewportHeight)
         {
             if (_contentRoot == null)
@@ -151,7 +138,6 @@ namespace SmartPowerManager.Views
             double savedMinHeight = _contentRoot.MinHeight;
             try
             {
-                // 一時的に MinHeight を外して本来の必要高さを測る
                 _contentRoot.MinHeight = 0;
                 _contentRoot.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
                 double natural = _contentRoot.DesiredSize.Height;
@@ -164,7 +150,6 @@ namespace SmartPowerManager.Views
             }
 
             double actual = _contentRoot.ActualHeight;
-            // MinHeight で伸ばされているだけの場合はスクロール不要
             if (savedMinHeight > 0 && actual <= savedMinHeight + 1.0 && savedMinHeight >= viewportHeight - 1.0)
                 return Math.Min(actual, viewportHeight);
 
@@ -178,7 +163,6 @@ namespace SmartPowerManager.Views
 
             _scrollEnabled = enabled;
             _scrollViewer.VerticalScrollMode = enabled ? ScrollMode.Enabled : ScrollMode.Disabled;
-            // Hidden↔Auto 切替はスクロールバー幅ぶん左右にずれるため、常に Visible でガターを確保する
             _scrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Visible;
             _scrollViewer.VerticalContentAlignment = VerticalAlignment.Top;
 

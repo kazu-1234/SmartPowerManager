@@ -55,7 +55,7 @@ public sealed partial class MainWindow : Window
     public void PrepareAndActivate(string? initialPageTag = null)
     {
         string tag = string.IsNullOrEmpty(initialPageTag) ? GetDefaultPageTag() : initialPageTag;
-        NavigateToPage(tag, force: true, suppressTransition: true);
+        NavigateToPage(tag, force: true);
         RestoreWindowBounds();
         UpdatePageHostWidth();
         _windowBoundsReady = true;
@@ -64,7 +64,7 @@ public sealed partial class MainWindow : Window
         Activate();
     }
 
-    public void NavigateToPageTag(string tag) => NavigateToPage(tag, force: false, suppressTransition: true);
+    public void NavigateToPageTag(string tag) => NavigateToPage(tag, force: false);
 
     internal void SaveWindowBoundsFromRuntime()
     {
@@ -197,7 +197,7 @@ public sealed partial class MainWindow : Window
             NavigateToPage(tag);
     }
 
-    private void NavigateToPage(string tag, bool force = false, bool suppressTransition = false)
+    private void NavigateToPage(string tag, bool force = false)
     {
         if (!force && _currentPageTag == tag && ContentFrame.CurrentSourcePageType != null)
         {
@@ -215,13 +215,9 @@ public sealed partial class MainWindow : Window
             _ => typeof(ShutdownPage)
         };
 
+        // 既定の横スライド遷移はページ切替のたびに左右位置がずれて見えるため常に抑制する
         if (force || ContentFrame.CurrentSourcePageType != pageType)
-        {
-            if (suppressTransition)
-                ContentFrame.Navigate(pageType, _appState, new SuppressNavigationTransitionInfo());
-            else
-                ContentFrame.Navigate(pageType, _appState);
-        }
+            ContentFrame.Navigate(pageType, _appState, new SuppressNavigationTransitionInfo());
 
         UpdateNavSelection(tag);
     }
