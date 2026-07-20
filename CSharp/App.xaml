@@ -21,14 +21,15 @@
 
             <Style x:Key="PageHostScrollViewerStyle" TargetType="ScrollViewer">
                 <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
-                <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+                <!-- ページ切替でバーの有無が変わると左右にずれるため常時表示 -->
+                <Setter Property="VerticalScrollBarVisibility" Value="Visible" />
                 <Setter Property="HorizontalAlignment" Value="Stretch" />
                 <Setter Property="VerticalAlignment" Value="Stretch" />
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="VerticalContentAlignment" Value="Top" />
             </Style>
 
-            <!-- 情報・設定共通: 親幅いっぱいに伸ばし MaxWidth で上限（カード横幅を統一） -->
+            <!-- 情報・設定共通: 親幅いっぱい（上限 MaxWidth）。スクロールバー常時表示と組み合わせて位置を固定 -->
             <Style x:Key="PageBaseStackPanelStyle" TargetType="StackPanel">
                 <Setter Property="MaxWidth" Value="{StaticResource UtilityPageMaxWidth}" />
                 <Setter Property="Margin" Value="24,0,24,24" />

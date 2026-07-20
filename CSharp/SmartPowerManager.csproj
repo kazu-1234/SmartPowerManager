@@ -15,7 +15,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
     <ApplicationDefaultLanguage>ja-JP</ApplicationDefaultLanguage>
-    <Version>2.0.16</Version>
+    <Version>2.0.17</Version>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- 配币E�E��E�単一 exe�E�E�E�Eotnet publish 時）に忁E�E��E�な WinUI unpackaged 設宁E-->
     <SelfContained Condition="'$(PublishSingleFile)' == 'true'">true</SelfContained>
