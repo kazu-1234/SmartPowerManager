@@ -27,7 +27,8 @@ namespace SmartPowerManager
         {
             _themeRoot = themeRoot;
             EnsureSystemThemeWatcher();
-            ApplyToRoot(save: false);
+            // 初回は通知しない（起動直後の二重描画を防ぐ）
+            ApplyToRoot(save: false, notify: false);
         }
 
         /// <summary>追加ウィンドウなど、メイン以外の要素へ現在のテーマを適用する。</summary>
@@ -44,7 +45,7 @@ namespace SmartPowerManager
         public static void SetPreference(AppThemePreference preference, bool save = true)
         {
             _currentPreference = preference;
-            ApplyToRoot(save);
+            ApplyToRoot(save, notify: true);
         }
 
         public static bool IsDarkTheme(FrameworkElement themeRoot)
@@ -57,7 +58,7 @@ namespace SmartPowerManager
             };
         }
 
-        private static void ApplyToRoot(bool save)
+        private static void ApplyToRoot(bool save, bool notify)
         {
             if (_themeRoot == null)
                 return;
@@ -69,7 +70,8 @@ namespace SmartPowerManager
                 _ => ElementTheme.Default
             };
 
-            ThemeChanged?.Invoke(null, EventArgs.Empty);
+            if (notify)
+                ThemeChanged?.Invoke(null, EventArgs.Empty);
 
             if (save)
             {

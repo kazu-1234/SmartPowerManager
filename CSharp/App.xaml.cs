@@ -1,18 +1,25 @@
-﻿// v2.0.1
+﻿// v2.0.15
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
+using System;
 using System.Diagnostics;
 
 namespace SmartPowerManager
 {
     public partial class App : Application
     {
-        private Window? _window;
+        private AppRuntime? _runtime;
+
+        internal static AppRuntime Runtime =>
+            (Current as App)?._runtime
+            ?? throw new InvalidOperationException("App runtime is not initialized.");
 
         public App()
         {
             InitializeComponent();
+            // × で MainWindow を破棄してもトレイ常駐を続ける（明示 Exit まで終了しない）
+            DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
             UnhandledException += App_UnhandledException;
         }
 
@@ -35,6 +42,14 @@ namespace SmartPowerManager
                 return;
             }
 
+            if (HasCommandLineArg("--sync-autostart"))
+            {
+                var syncSettings = Settings.Load();
+                StartupManager.SyncAutostartWithSettings(syncSettings.AutoStart);
+                Exit();
+                return;
+            }
+
             StartupManager.MigrateFromPythonRegistryIfNeeded();
 
             var settings = Settings.Load();
@@ -50,14 +65,8 @@ namespace SmartPowerManager
                 return;
             }
 
-            ThemeService.Initialize(settings.ThemePreference);
-
-            _window = new MainWindow(
-                settings,
-                launchInBackground,
-                requestInteractiveShow,
-                SingleInstanceManager.InteractiveShowEvent);
-            _window.Activate();
+            _runtime = new AppRuntime(this, settings);
+            _runtime.Start(launchInBackground, requestInteractiveShow);
         }
 
         private static bool HasCommandLineArg(string arg)

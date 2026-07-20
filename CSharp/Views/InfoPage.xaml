@@ -6,19 +6,19 @@
     xmlns:views="using:SmartPowerManager.Views">
     <views:PageScrollHost>
         <StackPanel Style="{StaticResource PageBaseStackPanelStyle}">
-            <TextBlock Text="情報" Style="{StaticResource PageTitleTextStyle}" />
+            <TextBlock x:Uid="Page_Info" Style="{StaticResource PageTitleTextStyle}" />
+
+            <TextBlock x:Uid="Info_SectionUpdate" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
 
             <controls:SettingsCard>
                 <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="アップデート" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                        <TextBlock x:Name="VersionText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                        <TextBlock Text="GitHub Releases から更新を確認します" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <StackPanel Spacing="4" MinWidth="0">
+                        <TextBlock x:Name="VersionText" Style="{StaticResource CardHeaderTextStyle}" />
+                        <TextBlock x:Uid="Info_UpdateDesc" Style="{StaticResource CardDescriptionTextStyle}" />
                     </StackPanel>
                 </controls:SettingsCard.Header>
                 <Button x:Name="CheckUpdateButton"
-                        Content="アップデートを確認"
-                        Style="{StaticResource PrimaryActionButtonStyle}"
+                        x:Uid="Info_CheckUpdate"
                         Click="CheckUpdateButton_Click" />
             </controls:SettingsCard>
 
@@ -29,21 +29,20 @@
                     <StackPanel Spacing="8">
                         <TextBlock x:Name="InstallStatusText" TextWrapping="Wrap" />
                         <Button x:Name="InstallUpdateButton"
-                                Content="ダウンロードしてインストール"
+                                x:Uid="Info_InstallUpdate"
                                 Style="{StaticResource PrimaryActionButtonStyle}"
                                 Click="InstallUpdateButton_Click" />
                     </StackPanel>
                 </controls:SettingsCard.Description>
             </controls:SettingsCard>
 
+            <TextBlock x:Uid="Info_SectionDisclaimer" Style="{StaticResource SettingsSectionHeaderStyle}" />
             <controls:SettingsCard>
-                <controls:SettingsCard.Header>
-                    <TextBlock Text="免責事項" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                </controls:SettingsCard.Header>
                 <controls:SettingsCard.Description>
-                    <TextBlock Text="本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。"
-                               Style="{StaticResource BodyTextBlockStyle}"
-                               TextWrapping="Wrap" />
+                    <StackPanel Spacing="8">
+                        <TextBlock x:Uid="Info_AboutDescription" Style="{StaticResource CardDescriptionTextStyle}" />
+                        <TextBlock x:Uid="Info_DisclaimerText" TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                    </StackPanel>
                 </controls:SettingsCard.Description>
             </controls:SettingsCard>
         </StackPanel>

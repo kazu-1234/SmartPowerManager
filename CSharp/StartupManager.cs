@@ -253,7 +253,10 @@ public static class StartupManager
 
     private static string GetExecutablePath()
     {
-        return Process.GetCurrentProcess().MainModule?.FileName
-            ?? throw new InvalidOperationException("実行ファイルのパスを取得できません。");
+        string? path = Environment.ProcessPath
+            ?? Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.IsNullOrWhiteSpace(path))
+            throw new InvalidOperationException("実行ファイルのパスを取得できません。");
+        return Path.GetFullPath(path);
     }
 }

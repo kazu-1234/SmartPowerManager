@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using SmartPowerManager.Services;
 
 namespace SmartPowerManager
@@ -17,6 +17,7 @@ namespace SmartPowerManager
         public SyncCoordinatorService SyncCoordinator { get; }
         public ScheduleExecutorService? Executor { get; set; }
         public Action? RequestSharedScheduleRefresh { get; set; }
+        public Action? ApplyTrayIconVisibility { get; set; }
         public ObservableCollection<string> ActivityLogs { get; } = new();
         public ObservableCollection<string> StartupLogs { get; } = new();
 

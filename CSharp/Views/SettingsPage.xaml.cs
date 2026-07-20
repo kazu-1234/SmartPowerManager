@@ -34,6 +34,7 @@ public sealed partial class SettingsPage : Page
         };
 
         AutoStartToggle.IsOn = _state?.Settings.AutoStart ?? false;
+        HideTrayIconCheckBox.IsChecked = _state?.Settings.HideTrayIcon ?? false;
         RefreshAutostartInfo();
         LoadDeviceSettings();
         _isInitializing = false;
@@ -120,6 +121,20 @@ public sealed partial class SettingsPage : Page
         _state.Settings.AutoStart = requested;
         _state.Settings.Save();
         RefreshAutostartInfo();
+    }
+
+    private void HideTrayIconCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing || _state == null)
+            return;
+
+        bool hide = HideTrayIconCheckBox.IsChecked == true;
+        if (hide == _state.Settings.HideTrayIcon)
+            return;
+
+        _state.Settings.HideTrayIcon = hide;
+        _state.Settings.Save();
+        _state.ApplyTrayIconVisibility?.Invoke();
     }
 
     private void SaveDeviceSettings()

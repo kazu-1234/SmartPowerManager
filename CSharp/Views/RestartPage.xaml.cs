@@ -19,7 +19,7 @@ public sealed partial class RestartPage : Page, ISchedulePage
     public RestartPage()
     {
         InitializeComponent();
-        SchedulePageFillLayout.Attach(this, PageRoot, LeftCard, RightCard);
+        SchedulePageFillLayout.Attach(this, PageRoot, PageTitleText, ScheduleSplitGrid, LeftCard, RightCard);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)

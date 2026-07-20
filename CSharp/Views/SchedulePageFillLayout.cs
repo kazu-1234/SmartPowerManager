@@ -5,13 +5,16 @@ using Microsoft.UI.Xaml.Media;
 namespace SmartPowerManager.Views;
 
 /// <summary>
-/// スケジュール系ページのカード高さと、ページ縦方向の余白配置を揃える。
+/// スケジュール系ページのカード高さのみ揃える。
+/// 縦位置は XAML の * / Auto / * 行で固定し、コードで Margin を動かさない（再描画ジャンプ防止）。
 /// </summary>
 internal static class SchedulePageFillLayout
 {
     public static void Attach(
         Page page,
         FrameworkElement pageRoot,
+        FrameworkElement pageTitle,
+        FrameworkElement content,
         FrameworkElement leftCard,
         FrameworkElement rightCard,
         bool syncLeftAndRightHeights = true)
@@ -19,7 +22,7 @@ internal static class SchedulePageFillLayout
         void Update()
         {
             ApplyCardHeights(leftCard, rightCard, syncLeftAndRightHeights);
-            ApplyPageRootMinHeight(page, pageRoot);
+            ApplyPageRootMinHeight(pageRoot);
         }
 
         Update();
@@ -44,18 +47,17 @@ internal static class SchedulePageFillLayout
             return;
         }
 
-        // 起動: 左は監視行がない分だけ低くし、各フォーム行の高さをシャットダウンと揃える。余白は下へ。
         double formRowHeight =
             (AppConstants.ScheduleCardHeight - AppConstants.ScheduleCardPaddingVertical) / 6.0;
         leftCard.Height = AppConstants.ScheduleCardPaddingVertical + formRowHeight * 5;
         leftCard.VerticalAlignment = VerticalAlignment.Top;
     }
 
-    private static void ApplyPageRootMinHeight(Page page, FrameworkElement pageRoot)
+    private static void ApplyPageRootMinHeight(FrameworkElement pageRoot)
     {
-        double viewportHeight = FindScrollViewerViewportHeight(page);
+        double viewportHeight = FindScrollViewerViewportHeight(pageRoot);
         if (viewportHeight <= 0)
-            viewportHeight = page.ActualHeight;
+            viewportHeight = pageRoot.ActualHeight;
 
         if (viewportHeight > 0)
             pageRoot.MinHeight = viewportHeight;

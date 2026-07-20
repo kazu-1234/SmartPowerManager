@@ -18,7 +18,7 @@ public sealed partial class InfoPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        VersionText.Text = Strings.Format("Settings_CurrentVersion", UpdateChecker.CurrentVersion);
+        VersionText.Text = Strings.Format("Version_Format", UpdateChecker.CurrentVersion);
     }
 
     private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
@@ -46,7 +46,7 @@ public sealed partial class InfoPage : Page
             if (!string.IsNullOrWhiteSpace(result.DownloadUrl) && !string.IsNullOrWhiteSpace(result.AssetFileName))
             {
                 InstallUpdateCard.Visibility = Visibility.Visible;
-                InstallStatusText.Text = $"バージョン {result.LatestVersion} をダウンロードできます";
+                InstallStatusText.Text = Strings.Format("Update_DownloadReady", result.LatestVersion ?? string.Empty);
             }
             else if (!string.IsNullOrWhiteSpace(result.ReleasePageUrl))
             {
@@ -72,7 +72,7 @@ public sealed partial class InfoPage : Page
             return;
 
         InstallUpdateButton.IsEnabled = false;
-        InstallStatusText.Text = "準備中...";
+        InstallStatusText.Text = Strings.Get("Update_Preparing");
 
         try
         {
@@ -85,7 +85,7 @@ public sealed partial class InfoPage : Page
         }
         catch (Exception ex)
         {
-            InstallStatusText.Text = $"更新失敗: {ex.Message}";
+            InstallStatusText.Text = Strings.Format("Update_Failed", ex.Message);
             InstallUpdateButton.IsEnabled = true;
         }
     }

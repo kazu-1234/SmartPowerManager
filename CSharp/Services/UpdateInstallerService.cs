@@ -4,51 +4,33 @@ using Microsoft.UI.Xaml;
 
 namespace SmartPowerManager.Services;
 
+/// <summary>
+/// Inno Setup の setup.exe をダウンロードして起動する更新ヘルパー。
+/// folder インストール／単体 exe 差し替えには対応しない。
+/// </summary>
 public static class UpdateInstallerService
 {
     public static async Task<string> DownloadAndInstallAsync(string downloadUrl, string fileName, IProgress<string>? progress = null)
     {
-        string currentExe = Environment.ProcessPath ?? AppContext.BaseDirectory;
-        if (!currentExe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            return "開発モードでは自動更新できません";
+        if (!fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            return Strings.Get("Update_SetupRequired");
 
-        string downloadDir = Path.GetDirectoryName(currentExe) ?? AppPaths.ExecutableDirectory;
+        // Temp に DL（インストール先の exe を上書きしない）
+        string downloadDir = Path.Combine(Path.GetTempPath(), "SmartPowerManagerUpdate");
+        Directory.CreateDirectory(downloadDir);
         string targetPath = Path.Combine(downloadDir, fileName);
 
-        if (string.Equals(Path.GetFullPath(targetPath), Path.GetFullPath(currentExe), StringComparison.OrdinalIgnoreCase))
-            targetPath += ".new";
-
-        progress?.Report("ダウンロード中...");
-        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        progress?.Report(Strings.Get("Update_Downloading"));
+        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartPowerManager");
 
-        await using var response = await client.GetStreamAsync(downloadUrl);
-        await using var file = File.Create(targetPath);
-        await response.CopyToAsync(file);
-
-        progress?.Report("インストール中...");
-        return ExecuteRenameSwap(currentExe, targetPath, downloadDir, Path.GetFileName(currentExe));
-    }
-
-    private static string ExecuteRenameSwap(string currentExe, string newExePath, string currentDir, string currentName)
-    {
-        string oldName = $"{currentName}.{Environment.ProcessId}.delete_me";
-        string oldPath = Path.Combine(currentDir, oldName);
-
-        if (File.Exists(oldPath))
+        await using (var response = await client.GetStreamAsync(downloadUrl))
+        await using (var file = File.Create(targetPath))
         {
-            try { File.Delete(oldPath); } catch { }
+            await response.CopyToAsync(file);
         }
 
-        File.Move(currentExe, oldPath);
-
-        string targetPath = Path.Combine(currentDir, currentName);
-        if (File.Exists(targetPath))
-        {
-            try { File.Delete(targetPath); } catch { }
-        }
-
-        File.Move(newExePath, targetPath);
+        progress?.Report(Strings.Get("Update_LaunchingSetup"));
 
         Process.Start(new ProcessStartInfo
         {
@@ -56,7 +38,8 @@ public static class UpdateInstallerService
             UseShellExecute = true
         });
 
+        // インストーラが上書きできるようアプリを終了
         Application.Current.Exit();
-        return "更新を適用しました。アプリを再起動します。";
+        return Strings.Get("Update_SetupStarted");
     }
 }

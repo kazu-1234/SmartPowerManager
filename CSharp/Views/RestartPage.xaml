@@ -6,6 +6,7 @@
     <views:PageScrollHost>
         <Grid x:Name="PageRoot">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -14,14 +15,13 @@
             <TextBlock x:Name="PageTitleText"
                        Grid.Row="0"
                        Text="再起動"
-                       Style="{StaticResource PageTitleTextStyle}"
-                       VerticalAlignment="Bottom"
-                       Margin="0,0,0,10" />
+                       Style="{StaticResource PageTitleTextStyle}" />
 
             <Grid x:Name="ScheduleSplitGrid"
-                  Grid.Row="1"
+                  Grid.Row="2"
                   ColumnSpacing="12"
-                  RowSpacing="12">
+                  RowSpacing="12"
+                  VerticalAlignment="Top">
                 <VisualStateManager.VisualStateGroups>
                     <VisualStateGroup x:Name="SplitStates">
                         <VisualState x:Name="Wide">

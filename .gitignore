@@ -21,8 +21,11 @@
 # Backups / packaged binaries
 **/SmartPowerManager_backup/
 **/dist/
+SmartPowerManager-v*-win-x64*.exe
+SmartPowerManager-v*-win-x64*.zip
 *.exe
 *.zip
+.cursor/
 
 # OS
 Thumbs.db

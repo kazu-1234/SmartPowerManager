@@ -5,31 +5,28 @@
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:views="using:SmartPowerManager.Views">
     <views:PageScrollHost>
-        <StackPanel Style="{StaticResource PageBaseStackPanelStyle}"
-                    Width="{StaticResource UtilityPageMaxWidth}"
-                    MaxWidth="{StaticResource UtilityPageMaxWidth}"
-                    HorizontalAlignment="Center">
-            <TextBlock Text="設定" Style="{StaticResource PageTitleTextStyle}" />
+        <StackPanel Style="{StaticResource PageBaseStackPanelStyle}">
+            <TextBlock x:Uid="Page_Settings" Style="{StaticResource PageTitleTextStyle}" />
 
-            <TextBlock Text="外観" Style="{StaticResource SettingsSectionHeaderStyle}" Margin="0,0,0,4" />
+            <TextBlock x:Uid="Settings_SectionAppearanceLabel" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
 
             <controls:SettingsCard>
                 <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="テーマ" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="ライト / ダーク / システム連動" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <StackPanel Spacing="4" MinWidth="0">
+                        <TextBlock x:Uid="Settings_ThemeLabel" Style="{StaticResource CardHeaderTextStyle}" />
+                        <TextBlock x:Uid="Settings_ThemeDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
                     </StackPanel>
                 </controls:SettingsCard.Header>
                 <ComboBox x:Name="ThemeComboBox" Style="{StaticResource CompactComboBoxStyle}" SelectionChanged="ThemeComboBox_SelectionChanged" />
             </controls:SettingsCard>
 
-            <TextBlock Text="起動設定" Style="{StaticResource SettingsSectionHeaderStyle}" />
+            <TextBlock x:Uid="Settings_SectionStartupLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 
             <controls:SettingsCard>
                 <controls:SettingsCard.Header>
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="ログオン時に自動起動" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="Windows ログオン時にタスクトレイ常駐で起動します（タスクスケジューラ方式）" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <StackPanel Spacing="4" MinWidth="0">
+                        <TextBlock x:Uid="Settings_AutoStartLabel" Style="{StaticResource CardHeaderTextStyle}" />
+                        <TextBlock x:Uid="Settings_AutoStartDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
                     </StackPanel>
                 </controls:SettingsCard.Header>
                 <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
@@ -38,15 +35,25 @@
             <controls:SettingsCard>
                 <controls:SettingsCard.Description>
                     <StackPanel Spacing="8">
-                        <TextBlock Text="登録方式" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="Settings_AutostartModeLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock x:Name="AutostartModeText" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
-                        <TextBlock Text="登録コマンド" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Uid="Settings_AutostartPathLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock x:Name="AutostartPathText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                     </StackPanel>
                 </controls:SettingsCard.Description>
             </controls:SettingsCard>
 
-            <TextBlock Text="デバイス連携" Style="{StaticResource SettingsSectionHeaderStyle}" />
+            <controls:SettingsCard>
+                <controls:SettingsCard.Header>
+                    <CheckBox x:Name="HideTrayIconCheckBox"
+                              x:Uid="Settings_HideTrayIcon"
+                              VerticalAlignment="Center"
+                              Checked="HideTrayIconCheckBox_Changed"
+                              Unchecked="HideTrayIconCheckBox_Changed" />
+                </controls:SettingsCard.Header>
+            </controls:SettingsCard>
+
+            <TextBlock x:Uid="Settings_SectionDeviceLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 
             <controls:SettingsCard>
                 <controls:SettingsCard.Description>

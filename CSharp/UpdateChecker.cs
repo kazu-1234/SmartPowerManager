@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -66,21 +66,7 @@ namespace SmartPowerManager
 
                 if (compare > 0)
                 {
-                    string? downloadUrl = null;
-                    string? assetFileName = null;
-                    if (release["assets"] is JArray assets)
-                    {
-                        foreach (var asset in assets.OfType<JObject>())
-                        {
-                            string? name = asset["name"]?.ToString();
-                            if (name != null && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                            {
-                                downloadUrl = asset["browser_download_url"]?.ToString();
-                                assetFileName = name;
-                                break;
-                            }
-                        }
-                    }
+                    var (downloadUrl, assetFileName) = SelectSetupAsset(release["assets"] as JArray);
 
                     return new UpdateCheckResult
                     {
@@ -109,6 +95,39 @@ namespace SmartPowerManager
                     Message = Strings.Format("Update_Error", ex.Message)
                 };
             }
+        }
+
+        /// <summary>
+        /// Inno の setup.exe を優先選択する（単体アプリ exe は選ばない）。
+        /// </summary>
+        private static (string? DownloadUrl, string? FileName) SelectSetupAsset(JArray? assets)
+        {
+            if (assets == null)
+                return (null, null);
+
+            string? fallbackUrl = null;
+            string? fallbackName = null;
+
+            foreach (var asset in assets.OfType<JObject>())
+            {
+                string? name = asset["name"]?.ToString();
+                string? url = asset["browser_download_url"]?.ToString();
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url))
+                    continue;
+
+                if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // 最優先: *-setup.exe / *setup*.exe
+                if (name.Contains("setup", StringComparison.OrdinalIgnoreCase))
+                    return (url, name);
+
+                fallbackUrl ??= url;
+                fallbackName ??= name;
+            }
+
+            // setup が無い場合のみ他の exe（後方互換）。Inno 配布では通常使わない
+            return (fallbackUrl, fallbackName);
         }
 
         private static int CompareVersions(string a, string b)

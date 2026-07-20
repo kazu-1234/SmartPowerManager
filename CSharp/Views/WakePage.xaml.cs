@@ -18,7 +18,7 @@ public sealed partial class WakePage : Page, ISchedulePage
     public WakePage()
     {
         InitializeComponent();
-        SchedulePageFillLayout.Attach(this, PageRoot, LeftCard, RightCard, syncLeftAndRightHeights: false);
+        SchedulePageFillLayout.Attach(this, PageRoot, PageTitleText, ScheduleSplitGrid, LeftCard, RightCard, syncLeftAndRightHeights: false);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)

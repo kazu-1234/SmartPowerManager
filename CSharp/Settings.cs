@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -11,6 +11,9 @@ namespace SmartPowerManager
 
         /// <summary>ログオンタスクによる自動起動。</summary>
         public bool AutoStart { get; set; }
+
+        /// <summary>true のときタスクトレイアイコンを表示しない。</summary>
+        public bool HideTrayIcon { get; set; }
 
         public int WindowWidth { get; set; } = 960;
         public int WindowHeight { get; set; } = 680;
