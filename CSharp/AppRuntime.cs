@@ -28,6 +28,7 @@ namespace SmartPowerManager
         private MainWindow? _mainWindow;
         private TrayMessageWindow? _trayMessageWindow;
         private CancellationTokenSource? _listenerCts;
+        private CancellationTokenSource? _startupHealthCts;
         private bool _trayInitialized;
         private bool _executorInitialized;
         private bool _isExitingProcess;
@@ -69,6 +70,7 @@ namespace SmartPowerManager
             ThemeService.Initialize(_settings.ThemePreference);
             StartListeners();
             EnsureExecutor();
+            ScheduleDelayedStartupHealthChecks();
 
             if (!ShouldUseTray())
             {
@@ -135,6 +137,9 @@ namespace SmartPowerManager
             _listenerCts?.Cancel();
             _listenerCts?.Dispose();
             _listenerCts = null;
+            _startupHealthCts?.Cancel();
+            _startupHealthCts?.Dispose();
+            _startupHealthCts = null;
 #if DEBUG
             _debuggerDetachTimer?.Dispose();
             _debuggerDetachTimer = null;
@@ -197,9 +202,68 @@ namespace SmartPowerManager
         {
             GetDispatcherQueue()?.TryEnqueue(async () =>
             {
-                ShowOrCreateMainWindowCore();
-                await _executor.HandlePendingActionAsync();
+                const int maxAttempts = 3;
+                for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    if (_isExitingProcess)
+                        return;
+
+                    try
+                    {
+                        ShowOrCreateMainWindowCore();
+                        await _executor.HandlePendingActionAsync();
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Pending confirmation failed (attempt {attempt}): {ex.Message}");
+                        if (attempt >= maxAttempts)
+                        {
+                            _appState.AddActivityLog("確認ダイアログの表示に失敗しました");
+                            return;
+                        }
+
+                        await Task.Delay(800 * attempt);
+                    }
+                }
             });
+        }
+
+        /// <summary>
+        /// ログオン直後はデスクトップ未準備でタイマー／状態が不安定になりうるため、
+        /// BlueShift のガンマ遅延再適用と同型で 0.8/2/5 秒後にヘルスチェックする。
+        /// </summary>
+        private void ScheduleDelayedStartupHealthChecks()
+        {
+            _startupHealthCts?.Cancel();
+            _startupHealthCts?.Dispose();
+            _startupHealthCts = new CancellationTokenSource();
+            var token = _startupHealthCts.Token;
+
+            Task.Run(async () =>
+            {
+                foreach (int delayMs in new[] { 800, 2000, 5000 })
+                {
+                    try
+                    {
+                        await Task.Delay(delayMs, token).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
+
+                    if (token.IsCancellationRequested || _isExitingProcess)
+                        break;
+
+                    GetDispatcherQueue()?.TryEnqueue(() =>
+                    {
+                        if (_isExitingProcess || !_executorInitialized)
+                            return;
+                        _executor.EnsureHealthy(announce: delayMs >= 5000);
+                    });
+                }
+            }, token);
         }
 
         private static bool ShouldUseTray()

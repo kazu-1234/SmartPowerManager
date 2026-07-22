@@ -46,8 +46,7 @@ public sealed class ScheduleExecutorService : IDisposable
     /// <summary>タイマーを開始し、設定に応じた初期状態を適用する。</summary>
     public void Initialize()
     {
-        if (!_timer.IsEnabled)
-            _timer.Start();
+        EnsureTimerRunning();
 
         bool anyOn = IsMonitoring(AppConstants.ActionShutdown) || IsMonitoring(AppConstants.ActionRestart);
         if (DiscardElapsedForDisabledActions())
@@ -59,6 +58,30 @@ public sealed class ScheduleExecutorService : IDisposable
             LogAdded?.Invoke("スケジュール監視はオフです（オフの種別は実行せず、過ぎた予定は削除します）");
 
         MonitoringStateChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// ログオン直後など、タイマー停止や状態ズレを検知して再始動する。
+    /// 初回 Initialize 後の遅延ヘルスチェックから呼ぶ。
+    /// </summary>
+    public void EnsureHealthy(bool announce = false)
+    {
+        bool wasRunning = _timer.IsEnabled;
+        EnsureTimerRunning();
+
+        if (DiscardElapsedForDisabledActions())
+            SchedulesChanged?.Invoke();
+
+        MonitoringStateChanged?.Invoke();
+
+        if (announce && !wasRunning)
+            LogAdded?.Invoke("スケジュール監視タイマーを再始動しました");
+    }
+
+    private void EnsureTimerRunning()
+    {
+        if (!_timer.IsEnabled)
+            _timer.Start();
     }
 
     public void SetMonitoring(string action, bool enabled)
