@@ -62,6 +62,7 @@ public sealed class ScheduleExecutorService : IDisposable
 
     /// <summary>
     /// ログオン直後・スリープ復帰など、タイマー停止や状態ズレを検知して再始動する。
+    /// BlueShift の ForceApply 相当として、即時に 1 回分のスケジュール評価も行う。
     /// </summary>
     public void EnsureHealthy(bool announce = false)
     {
@@ -71,8 +72,9 @@ public sealed class ScheduleExecutorService : IDisposable
             _timer.Stop();
         _timer.Start();
 
-        if (DiscardElapsedForDisabledActions())
-            SchedulesChanged?.Invoke();
+        // 同一分内の短時間スリープで Tick がスキップされないよう、分キーをリセットして即時評価する
+        _lastMinute = -1;
+        EvaluateCurrentMinute(DateTime.Now);
 
         MonitoringStateChanged?.Invoke();
 
@@ -170,6 +172,12 @@ public sealed class ScheduleExecutorService : IDisposable
         if (now.Minute == _lastMinute)
             return;
 
+        EvaluateCurrentMinute(now);
+    }
+
+    /// <summary>現在分のスケジュール評価（復帰時の即時 Force 相当）。</summary>
+    private void EvaluateCurrentMinute(DateTime now)
+    {
         _lastMinute = now.Minute;
 
         // 過ぎた予定の破棄は自動（監視オフ種別＋発火枠を過ぎた一回限りは常に削除・未実行）

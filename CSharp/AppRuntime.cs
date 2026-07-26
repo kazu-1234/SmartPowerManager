@@ -234,9 +234,12 @@ namespace SmartPowerManager
             });
         }
 
+        /// <summary>開始時点からの絶対遅延（累積 Delay にしない）。BlueShift と同型。</summary>
+        private static readonly int[] HealthCheckDelaysMs = { 800, 2000, 5000, 15000 };
+
         /// <summary>
         /// ログオン直後・スリープ復帰時など、デスクトップ／タイマーが不安定なときに
-        /// BlueShift と同型で 0.8/2/5 秒後にヘルスチェックする。
+        /// BlueShift と同型で T+0.8/2/5/15 秒後にヘルスチェックする。
         /// </summary>
         private void ScheduleDelayedHealthChecks()
         {
@@ -247,11 +250,14 @@ namespace SmartPowerManager
 
             Task.Run(async () =>
             {
-                foreach (int delayMs in new[] { 800, 2000, 5000 })
+                var start = DateTime.UtcNow;
+                foreach (int delayMs in HealthCheckDelaysMs)
                 {
                     try
                     {
-                        await Task.Delay(delayMs, token).ConfigureAwait(false);
+                        var wait = start.AddMilliseconds(delayMs) - DateTime.UtcNow;
+                        if (wait > TimeSpan.Zero)
+                            await Task.Delay(wait, token).ConfigureAwait(false);
                     }
                     catch (TaskCanceledException)
                     {
@@ -261,11 +267,12 @@ namespace SmartPowerManager
                     if (token.IsCancellationRequested || _isExitingProcess)
                         break;
 
+                    int capturedDelay = delayMs;
                     GetDispatcherQueue()?.TryEnqueue(() =>
                     {
                         if (_isExitingProcess || !_executorInitialized)
                             return;
-                        _executor.EnsureHealthy(announce: delayMs >= 5000);
+                        _executor.EnsureHealthy(announce: capturedDelay >= 15000);
                     });
                 }
             }, token);
