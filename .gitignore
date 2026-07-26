@@ -1,0 +1,38 @@
+# Build / IDE
+**/bin/
+**/obj/
+**/.vs/
+**/publish/
+**/release_artifacts/
+*.user
+*.suo
+*.pdb
+*.log
+
+# Local secrets / runtime data (絶対にコミットしない)
+**/schedules.json
+**/settings.json
+**/.show_signal
+**/config.h
+**/crash_log.txt
+**/debug.log
+**/error_log.txt
+
+# Backups / packaged binaries
+**/SmartPowerManager_backup/
+**/dist/
+SmartPowerManager-v*-win-x64*.exe
+SmartPowerManager-v*-win-x64*.zip
+*.exe
+*.zip
+.cursor/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Python
+**/__pycache__/
+*.pyc
+*.spec

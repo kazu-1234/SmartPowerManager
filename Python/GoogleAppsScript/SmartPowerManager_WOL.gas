@@ -1,0 +1,229 @@
+// スクリプトのプロパティ（一時的なデータ保存領域）にデータを保存するためのキー
+const CMD_KEY = 'WOL_COMMAND';
+const TRIGGER_KEY = 'WOL_TRIGGER'; // 「信号」を保存するためのキー
+const FILE_NAME = 'SmartPowerManager_Schedules.json'; // PCアプリ連携用スケジュール保存ファイル名
+
+// --- ↓↓↓ ユーザー設定項目 ↓↓↓ ---
+// LINE Developersコンソールで取得したチャネルアクセストークン
+const LINE_CHANNEL_ACCESS_TOKEN = 'ここに実際の発行したトークンを貼り付け'; // ★★★ 自分のアクセストークンに書き換える ★★★
+// --- ↑↑↑ ユーザー設定項目 ↑↑↑ ---
+
+/**
+ * @brief Google DriveにJSON文字列を保存する
+ */
+function saveToDrive(dataString) {
+  const files = DriveApp.getFilesByName(FILE_NAME);
+  if (files.hasNext()) {
+    const file = files.next();
+    file.setContent(dataString);
+    console.log(`[saveToDrive] 既存のファイルに上書き保存しました。サイズ: ${dataString.length} bytes`);
+  } else {
+    DriveApp.createFile(FILE_NAME, dataString, MimeType.PLAIN_TEXT);
+    console.log(`[saveToDrive] 新規ファイルを作成して保存しました。サイズ: ${dataString.length} bytes`);
+  }
+}
+
+/**
+ * @brief Google DriveからJSON文字列を取得する
+ */
+function getFromDrive() {
+  const files = DriveApp.getFilesByName(FILE_NAME);
+  if (files.hasNext()) {
+    const file = files.next();
+    return file.getBlob().getDataAsString();
+  }
+  return null;
+}
+
+/**
+ * @brief 権限ダイアログを出すための手動実行用ダミーテスト
+ */
+function testAuth() {
+  DriveApp.getFilesByName("dummy");
+  console.log("テスト完了です。権限が許可されました。");
+}
+
+/**
+ * @brief LINEプラットフォームおよびPCアプリからWebhookでPOSTリクエストを受け取ったときに実行される関数
+ */
+function doPost(e) {
+  try {
+    // 【極地的なクラッシュ回避】
+    // 引数 e がない、あるいは e.postData が存在しない異常なリクエストを完全にブロックする
+    if (!e) {
+      console.error("[doPost] Error: 引数 e が undefined です。");
+      return ContentService.createTextOutput("Error: No Event").setMimeType(ContentService.MimeType.TEXT);
+    }
+    if (!e.postData) {
+      console.error("[doPost] Error: e.postData が undefined です。");
+      return ContentService.createTextOutput("Error: No postData").setMimeType(ContentService.MimeType.TEXT);
+    }
+    if (!e.postData.contents) {
+      console.log("[doPost] postData.contents が空のリクエストを受信しました");
+      return ContentService.createTextOutput("Empty payload.").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    // 問題なくデータがあることが確定したので中身をパースする
+    let payload;
+    try {
+      payload = JSON.parse(e.postData.contents);
+    } catch(parseErr) {
+      console.error("JSONパースエラー: " + parseErr.message);
+      return ContentService.createTextOutput("Error: Invalid JSON").setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    // 1. Windowsアプリ(SmartPowerManager)からの連携（JSON）の場合
+    if (payload.wol_triggers !== undefined || payload.daily || payload.startup_daily) {
+      saveToDrive(e.postData.contents);
+      console.log("[doPost] ★ SCHEDULES_JSON(Drive) 保存完了! データサイズ: " + e.postData.contents.length + " bytes");
+      return ContentService.createTextOutput(JSON.stringify({'status': 'ok'})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. LINEプラットフォームからのWebhookイベントの場合
+    if (payload.events && Array.isArray(payload.events) && payload.events.length > 0) {
+      console.log("[doPost] LINE Webhookイベント受信");
+      const event = payload.events[0];
+      if (event && event.type === 'message' && event.message && event.message.type === 'text') {
+        const messageText = event.message.text.trim();
+        // パソコン起動コマンドが送られてきた時
+        if (messageText === 'デスクトップPC起動' || messageText === 'サーバーPC起動') {
+          PropertiesService.getScriptProperties().setProperty(CMD_KEY, messageText);
+          PropertiesService.getScriptProperties().setProperty(TRIGGER_KEY, '1');
+          replyMessage(event.replyToken, `${messageText}しました。`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("doPost 致命的エラー: " + err.toString() + " Stack: " + err.stack);
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({'status': 'ok'})).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * @brief 1分ごとの「時間主導型トリガー(Time-driven)」で実行させる関数
+ */
+function checkSchedules() {
+  try {
+    const dataStr = getFromDrive();
+    if (!dataStr) {
+      console.log("[checkSchedules] Drive上に SCHEDULES_JSON がありません。");
+      return;
+    }
+    const data = JSON.parse(dataStr);
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentDay = now.getDay(); // 0(Sun) - 6(Sat)
+    const pyCurrentDay = (currentDay === 0) ? 6 : currentDay - 1; // Windowsに合わせて 0(Mon) - 6(Sun) に変換
+    
+    const nowStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(currentHour).padStart(2,'0')}:${String(currentMinute).padStart(2,'0')}`;
+
+    console.log(`[checkSchedules] 現在時刻: ${nowStr} (曜日=${pyCurrentDay})`);
+
+    let isWOL = false;
+    let matchReason = "";
+
+    // 起動・シャットダウン3分前をまとめたトリガーのチェック
+    if (data.wol_triggers && Array.isArray(data.wol_triggers)) {
+      for (let w of data.wol_triggers) {
+        if (!w) continue;
+        if (w.type === "daily" && w.hour == currentHour && w.minute == currentMinute) {
+          isWOL = true;
+          matchReason = "wol_trigger(daily)";
+          break;
+        }
+        if (w.type === "weekly" && w.weekday == pyCurrentDay && w.hour == currentHour && w.minute == currentMinute) {
+          isWOL = true;
+          matchReason = `wol_trigger(weekly,wd=${w.weekday})`;
+          break;
+        }
+        if (w.type === "onetime" && w.datetime === nowStr) {
+          isWOL = true;
+          matchReason = "wol_trigger(onetime)";
+          break;
+        }
+      }
+    }
+
+    // 結果：マッチしたらWOL用のコマンドをセット
+    if (isWOL) {
+      let targetPc = "デスクトップPC";
+      if (data.pico_settings && data.pico_settings.gas_target) {
+        targetPc = data.pico_settings.gas_target;
+      } else if (data.target_pc) {
+        targetPc = data.target_pc;
+      }
+      
+      PropertiesService.getScriptProperties().setProperty(CMD_KEY, targetPc + "起動");
+      PropertiesService.getScriptProperties().setProperty(TRIGGER_KEY, '1');
+      console.log(`[checkSchedules] ★★★ MATCH! WOL Trigger ON ★★★ 対象: ${targetPc} 理由: ${matchReason}`);
+    } else {
+      console.log("[checkSchedules] マッチなし。トリガーなし。");
+    }
+  } catch(e) {
+    console.error("checkSchedules Error: " + e);
+  }
+}
+
+/**
+ * @brief Raspberry Pi Pico WからのGETポーリングに対するレスポンス処理
+ */
+function doGet(e) {
+  try {
+    const query = (e && e.parameter) ? e.parameter.action : null; 
+    if (query === 'signal') {
+      const trigger = PropertiesService.getScriptProperties().getProperty(TRIGGER_KEY);
+      if (trigger === '1') {
+        return ContentService.createTextOutput('TRIGGER');
+      }
+      return ContentService.createTextOutput('');
+    }
+    
+    if (query === 'command') {
+      const scriptProperties = PropertiesService.getScriptProperties();
+      const command = scriptProperties.getProperty(CMD_KEY);
+      if (command) {
+        scriptProperties.deleteProperty(CMD_KEY);
+        scriptProperties.deleteProperty(TRIGGER_KEY);
+        return ContentService.createTextOutput(command);
+      }
+      return ContentService.createTextOutput('');
+    }
+  } catch (err) {
+    console.error("doGet Error: " + err.toString());
+    return ContentService.createTextOutput('ERROR');
+  }
+  return ContentService.createTextOutput('');
+}
+
+/**
+ * @brief LINEに応答メッセージを送信する関数
+ */
+function replyMessage(replyToken, message) {
+  const url = 'https://api.line.me/v2/bot/message/reply';
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + LINE_CHANNEL_ACCESS_TOKEN,
+  };
+  const payload = {
+    'replyToken': replyToken,
+    'messages': [{
+      'type': 'text',
+      'text': message,
+    }],
+  };
+  const options = {
+    'method': 'post',
+    'headers': headers,
+    'payload': JSON.stringify(payload),
+    'muteHttpExceptions': true,
+  };
+  
+  try {
+    UrlFetchApp.fetch(url, options);
+  } catch (err) {
+    console.error("Reply message failed: " + err.toString());
+  }
+}
