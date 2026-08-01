@@ -30,6 +30,8 @@ namespace SmartPowerManager
         private SystemEventWindow? _systemEventWindow;
         private CancellationTokenSource? _listenerCts;
         private CancellationTokenSource? _startupHealthCts;
+        private Timer? _healthThreadingWatchdog;
+        private DateTime _intensiveHealthUntil = DateTime.MinValue;
         private bool _trayInitialized;
         private bool _executorInitialized;
         private bool _systemEventInitialized;
@@ -37,6 +39,14 @@ namespace SmartPowerManager
 #if DEBUG
         private Timer? _debuggerDetachTimer;
 #endif
+
+        private const int IntensiveHealthSeconds = 120;
+        private const int HealthWatchdogNormalIntervalMs = 30000;
+        private const int HealthWatchdogIntensiveIntervalMs = 2500;
+
+        /// <summary>開始時点からの絶対遅延（累積 Delay にしない）。BlueShift と同型。</summary>
+        private static readonly int[] HealthCheckDelaysMs =
+            { 800, 2000, 5000, 15000, 30000, 60000, 90000 };
 
         public AppRuntime(Application app, Settings settings)
         {
@@ -73,6 +83,9 @@ namespace SmartPowerManager
             StartListeners();
             EnsureExecutor();
             EnsureSystemEventMonitor();
+            // T+0 Force 相当（ログオン直後のタイマー未 Tick を即時救済）
+            _executor.EnsureHealthy(announce: false);
+            BeginIntensiveHealthPeriod();
             ScheduleDelayedHealthChecks();
 
             if (!ShouldUseTray())
@@ -143,6 +156,8 @@ namespace SmartPowerManager
             _startupHealthCts?.Cancel();
             _startupHealthCts?.Dispose();
             _startupHealthCts = null;
+            _healthThreadingWatchdog?.Dispose();
+            _healthThreadingWatchdog = null;
 #if DEBUG
             _debuggerDetachTimer?.Dispose();
             _debuggerDetachTimer = null;
@@ -234,12 +249,9 @@ namespace SmartPowerManager
             });
         }
 
-        /// <summary>開始時点からの絶対遅延（累積 Delay にしない）。BlueShift と同型。</summary>
-        private static readonly int[] HealthCheckDelaysMs = { 800, 2000, 5000, 15000 };
-
         /// <summary>
         /// ログオン直後・スリープ復帰時など、デスクトップ／タイマーが不安定なときに
-        /// BlueShift と同型で T+0.8/2/5/15 秒後にヘルスチェックする。
+        /// BlueShift と同型で T+0.8/2/5/15/30/60/90 秒後にヘルスチェックする。
         /// </summary>
         private void ScheduleDelayedHealthChecks()
         {
@@ -268,12 +280,17 @@ namespace SmartPowerManager
                         break;
 
                     int capturedDelay = delayMs;
-                    GetDispatcherQueue()?.TryEnqueue(() =>
+                    if (!(GetDispatcherQueue()?.TryEnqueue(() =>
+                        {
+                            if (_isExitingProcess || !_executorInitialized)
+                                return;
+                            EnsureSystemEventMonitor();
+                            _executor.EnsureHealthy(announce: capturedDelay >= 90000);
+                        }) ?? false))
                     {
-                        if (_isExitingProcess || !_executorInitialized)
-                            return;
-                        _executor.EnsureHealthy(announce: capturedDelay >= 15000);
-                    });
+                        if (!_isExitingProcess && _executorInitialized)
+                            _executor.EvaluateScheduleNow();
+                    }
                 }
             }, token);
         }
@@ -285,7 +302,80 @@ namespace SmartPowerManager
                 return;
 
             _executor.EnsureHealthy(announce: false);
+            BeginIntensiveHealthPeriod();
             ScheduleDelayedHealthChecks();
+        }
+
+        /// <summary>専用スレッドからの復帰通知。Dispatcher 不通時は評価のみ直接実行する。</summary>
+        private void OnSystemDisplayStateChanged()
+        {
+            if (!(GetDispatcherQueue()?.TryEnqueue(OnSystemResume) ?? false))
+                OnSystemResumeFallbackDirect();
+        }
+
+        private void OnSystemResumeFallbackDirect()
+        {
+            if (_isExitingProcess || !_executorInitialized)
+                return;
+
+            _executor.EvaluateScheduleNow();
+            BeginIntensiveHealthPeriod();
+            ScheduleDelayedHealthChecks();
+        }
+
+        private void BeginIntensiveHealthPeriod()
+        {
+            _intensiveHealthUntil = DateTime.UtcNow.AddSeconds(IntensiveHealthSeconds);
+            StartThreadingHealthWatchdog();
+        }
+
+        /// <summary>DispatcherTimer が止まっても EnsureHealthy できる Threading.Timer バックアップ（BlueShift 同型）。</summary>
+        private void StartThreadingHealthWatchdog()
+        {
+            int intervalMs = DateTime.UtcNow < _intensiveHealthUntil
+                ? HealthWatchdogIntensiveIntervalMs
+                : HealthWatchdogNormalIntervalMs;
+
+            if (_healthThreadingWatchdog == null)
+            {
+                _healthThreadingWatchdog = new Timer(
+                    _ =>
+                    {
+                        if (!(GetDispatcherQueue()?.TryEnqueue(() =>
+                            {
+                                if (_isExitingProcess || !_executorInitialized)
+                                    return;
+                                EnsureSystemEventMonitor();
+                                // 評価はしない（同一分の再発火防止）。タイマー生存のみ保証する。
+                                _executor.EnsureHealthy(announce: false, evaluateSchedule: false);
+                                SyncThreadingHealthWatchdogInterval();
+                            }) ?? false))
+                        {
+                            // タイマー再始動は UI 必須。評価だけフォールバック。
+                            if (!_isExitingProcess && _executorInitialized
+                                && DateTime.UtcNow < _intensiveHealthUntil)
+                                _executor.EvaluateScheduleNow();
+                        }
+                    },
+                    null,
+                    intervalMs,
+                    intervalMs);
+            }
+            else
+            {
+                _healthThreadingWatchdog.Change(intervalMs, intervalMs);
+            }
+        }
+
+        private void SyncThreadingHealthWatchdogInterval()
+        {
+            if (_healthThreadingWatchdog == null)
+                return;
+
+            int intervalMs = DateTime.UtcNow < _intensiveHealthUntil
+                ? HealthWatchdogIntensiveIntervalMs
+                : HealthWatchdogNormalIntervalMs;
+            _healthThreadingWatchdog.Change(intervalMs, intervalMs);
         }
 
         private static bool ShouldUseTray()
@@ -311,12 +401,11 @@ namespace SmartPowerManager
             if (_systemEventInitialized)
                 return;
 
-            _systemEventInitialized = true;
             try
             {
                 _systemEventWindow = new SystemEventWindow();
-                _systemEventWindow.SystemDisplayStateChanged += () =>
-                    GetDispatcherQueue()?.TryEnqueue(OnSystemResume);
+                _systemEventWindow.SystemDisplayStateChanged += OnSystemDisplayStateChanged;
+                _systemEventInitialized = true;
             }
             catch (Exception ex)
             {

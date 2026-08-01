@@ -12,8 +12,8 @@ namespace SmartPowerManager.Views;
 public sealed partial class CountdownConfirmWindow : Window
 {
     private const int CountdownSeconds = 60;
-    private const int WindowWidth = 440;
-    private const int WindowHeight = 300;
+    private const int WindowWidth = 480;
+    private const int WindowHeight = 400;
 
     private readonly TaskCompletionSource<bool> _tcs = new();
     private readonly DispatcherTimer _timer;

@@ -3,10 +3,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid x:Name="RootGrid"
           Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
-          Padding="28,24">
+          Padding="24,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="120" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -14,33 +16,45 @@
                    Grid.Row="0"
                    Style="{StaticResource SubtitleTextBlockStyle}"
                    TextWrapping="Wrap"
-                   Margin="0,0,0,16" />
+                   Margin="0,0,0,8" />
 
-        <StackPanel Grid.Row="1"
-                    VerticalAlignment="Center"
-                    Spacing="8">
-            <TextBlock x:Name="MessageText"
-                       TextWrapping="Wrap"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center" />
+        <TextBlock x:Name="MessageText"
+                   Grid.Row="1"
+                   TextWrapping="Wrap"
+                   HorizontalAlignment="Center"
+                   TextAlignment="Center"
+                   Margin="0,0,0,4" />
+
+        <!-- 残り高さいっぱいに広げ、Viewbox が枠内へ自動縮小。Padding でグリフ上下のクリップを防ぐ -->
+        <Viewbox x:Name="CountdownViewbox"
+                 Grid.Row="2"
+                 Stretch="Uniform"
+                 StretchDirection="DownOnly"
+                 HorizontalAlignment="Stretch"
+                 VerticalAlignment="Stretch"
+                 Margin="8,4">
             <TextBlock x:Name="CountdownText"
                        Text="60秒"
-                       FontSize="48"
+                       FontSize="96"
                        FontWeight="SemiBold"
                        HorizontalAlignment="Center"
-                       TextAlignment="Center"
-                       Margin="0,8,0,0" />
-            <TextBlock x:Name="PreviewHintText"
-                       Text="プレビュー表示（警告音・シャットダウンは発生しません）"
-                       FontSize="12"
-                       Foreground="Orange"
-                       HorizontalAlignment="Center"
-                       TextWrapping="Wrap"
-                       Visibility="Collapsed"
-                       Margin="0,12,0,0" />
-        </StackPanel>
+                       VerticalAlignment="Center"
+                       Padding="24,36"
+                       TextLineBounds="Full"
+                       OpticalMarginAlignment="None" />
+        </Viewbox>
 
-        <Grid Grid.Row="2" Margin="0,20,0,0" ColumnSpacing="12">
+        <TextBlock x:Name="PreviewHintText"
+                   Grid.Row="3"
+                   Text="プレビュー表示（警告音・シャットダウンは発生しません）"
+                   FontSize="12"
+                   Foreground="Orange"
+                   HorizontalAlignment="Center"
+                   TextWrapping="Wrap"
+                   Visibility="Collapsed"
+                   Margin="0,4,0,0" />
+
+        <Grid Grid.Row="4" Margin="0,16,0,0" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />

@@ -64,7 +64,8 @@ public sealed class ScheduleExecutorService : IDisposable
     /// ログオン直後・スリープ復帰など、タイマー停止や状態ズレを検知して再始動する。
     /// BlueShift の ForceApply 相当として、即時に 1 回分のスケジュール評価も行う。
     /// </summary>
-    public void EnsureHealthy(bool announce = false)
+    /// <param name="evaluateSchedule">true のとき分キーをリセットして即時評価する。Threading ウォッチドッグは false。</param>
+    public void EnsureHealthy(bool announce = false, bool evaluateSchedule = true)
     {
         bool wasRunning = _timer.IsEnabled;
         // スリープ後は IsEnabled のまま Tick が止まることがあるため、Stop→Start で起こす
@@ -72,14 +73,22 @@ public sealed class ScheduleExecutorService : IDisposable
             _timer.Stop();
         _timer.Start();
 
-        // 同一分内の短時間スリープで Tick がスキップされないよう、分キーをリセットして即時評価する
-        _lastMinute = -1;
-        EvaluateCurrentMinute(DateTime.Now);
+        if (evaluateSchedule)
+            EvaluateScheduleNow();
 
         MonitoringStateChanged?.Invoke();
 
         if (announce && !wasRunning)
             LogAdded?.Invoke("スケジュール監視タイマーを再始動しました");
+    }
+
+    /// <summary>
+    /// Dispatcher 不通時用。タイマー再始動なしでスケジュール評価のみ（任意スレッド可）。
+    /// </summary>
+    public void EvaluateScheduleNow()
+    {
+        _lastMinute = -1;
+        EvaluateCurrentMinute(DateTime.Now);
     }
 
     private void EnsureTimerRunning()
