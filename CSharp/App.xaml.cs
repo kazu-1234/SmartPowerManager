@@ -1,4 +1,4 @@
-﻿// v2.1.9
+﻿// v2.1.10
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
@@ -26,6 +26,8 @@ namespace SmartPowerManager
         private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
             Debug.WriteLine(e.Exception);
+            AppRuntime.AppendLifetimeLog($"unhandled {e.Exception?.GetType().Name}: {e.Exception?.Message}");
+            e.Handled = true;
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)

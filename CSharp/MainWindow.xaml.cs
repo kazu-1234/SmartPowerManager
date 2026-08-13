@@ -143,7 +143,7 @@ public sealed partial class MainWindow : Window
     {
         Closed -= MainWindow_ClosedDebugExit;
         if (!_runtime.IsExitingProcess)
-            _runtime.ExitApplication();
+            _runtime.ExitApplication("debug-window-close");
     }
 
     private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs e)

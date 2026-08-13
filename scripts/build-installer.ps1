@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$version = "2.1.9"
+$version = "2.1.10"
 $publishDir = Join-Path $root "dist\folder"
 $iss = Join-Path $root "installer\SmartPowerManager.iss"
 $outDir = Join-Path $root "dist\installer"

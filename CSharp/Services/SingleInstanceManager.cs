@@ -167,9 +167,19 @@ internal static class SingleInstanceManager
         }
     }
 
-    /// <summary>既存インスタンスへ終了を依頼（インストーラ用）。</summary>
+    /// <summary>既存インスタンスへ終了を依頼（インストーラ用）。ファイルが本体、イベントは起床用。</summary>
     public static void SignalExit()
     {
+        try
+        {
+            if (!Directory.Exists(AppPaths.AppDataDirectory))
+                Directory.CreateDirectory(AppPaths.AppDataDirectory);
+            File.WriteAllText(AppPaths.ExitSignalFilePath, DateTime.UtcNow.ToString("O"));
+        }
+        catch
+        {
+        }
+
         try
         {
             using var exitEvent = EventWaitHandle.OpenExisting(ExitEventName);
@@ -183,12 +193,23 @@ internal static class SingleInstanceManager
     /// <summary>ファイル信号があれば消費して true。</summary>
     public static bool TryConsumeShowSignal()
     {
-        if (!File.Exists(AppPaths.SignalFilePath))
+        return TryConsumeFile(AppPaths.SignalFilePath);
+    }
+
+    /// <summary>終了握手ファイルがあれば消費して true。イベントだけの起床は無視する。</summary>
+    public static bool TryConsumeExitSignal()
+    {
+        return TryConsumeFile(AppPaths.ExitSignalFilePath);
+    }
+
+    private static bool TryConsumeFile(string path)
+    {
+        if (!File.Exists(path))
             return false;
 
         try
         {
-            File.Delete(AppPaths.SignalFilePath);
+            File.Delete(path);
             return true;
         }
         catch

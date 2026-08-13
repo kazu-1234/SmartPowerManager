@@ -22,6 +22,8 @@ namespace SmartPowerManager.Services
 
         private const string WindowClassName = "SmartPowerManagerSystemEventWindow_v2";
         private const uint WM_CLOSE = 0x0010;
+        private const uint WM_APP = 0x8000;
+        private const uint WM_APP_SHUTDOWN = WM_APP + 1;
         private const uint WM_DESTROY = 0x0002;
         private const uint WM_DISPLAYCHANGE = 0x007E;
         private const uint WM_POWERBROADCAST = 0x0218;
@@ -60,6 +62,8 @@ namespace SmartPowerManager.Services
         private bool _coalesceTrailingPending;
 
         public event Action? SystemDisplayStateChanged;
+
+        public bool IsAlive => _hwnd != IntPtr.Zero && IsWindow(_hwnd);
 
         public SystemEventWindow()
         {
@@ -185,7 +189,11 @@ namespace SmartPowerManager.Services
                 ? GCHandle.FromIntPtr(userData).Target as SystemEventWindow
                 : null;
 
-            if (msg == WM_CLOSE && target != null)
+            // OS がスリープ等で WM_CLOSE を投げても監視窓は落とさない
+            if (msg == WM_CLOSE)
+                return IntPtr.Zero;
+
+            if (msg == WM_APP_SHUTDOWN && target != null)
             {
                 target.UnregisterNotificationsOnly();
                 DestroyWindow(hWnd);
@@ -326,7 +334,7 @@ namespace SmartPowerManager.Services
         {
             IntPtr hwnd = _hwnd;
             if (hwnd != IntPtr.Zero)
-                PostMessageW(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                PostMessageW(hwnd, WM_APP_SHUTDOWN, IntPtr.Zero, IntPtr.Zero);
         }
 
         private void CleanupNativeResources()

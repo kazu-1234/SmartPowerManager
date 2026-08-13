@@ -13,6 +13,9 @@ public static class AppPaths
     public static string SignalFilePath =>
         Path.Combine(AppDataDirectory, ".show_signal");
 
+    public static string ExitSignalFilePath =>
+        Path.Combine(AppDataDirectory, ".exit_signal");
+
     public static string ExecutableDirectory =>
         Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
         ?? AppContext.BaseDirectory;

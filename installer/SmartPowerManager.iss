@@ -2,7 +2,7 @@
 ; Usage: scripts\build-installer.ps1
 
 #define MyAppName "SmartPowerManager"
-#define MyAppVersion "2.1.9"
+#define MyAppVersion "2.1.10"
 #define MyAppPublisher "kazu-1234"
 #define MyAppURL "https://github.com/kazu-1234/SmartPowerManager"
 #define MyAppExeName "SmartPowerManager.exe"

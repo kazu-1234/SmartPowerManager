@@ -39,7 +39,7 @@ public static class UpdateInstallerService
         });
 
         // インストーラが上書きできるようアプリを終了
-        Application.Current.Exit();
+        App.Runtime.ExitApplication("update-install");
         return Strings.Get("Update_SetupStarted");
     }
 }

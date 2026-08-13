@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -155,12 +156,13 @@ namespace SmartPowerManager
             GetDispatcherQueue()?.TryEnqueue(() => _mainWindow?.RefreshCurrentPage());
         }
 
-        public void ExitApplication()
+        public void ExitApplication(string reason = "unknown")
         {
             if (_isExitingProcess)
                 return;
 
             _isExitingProcess = true;
+            AppendLifetimeLog(reason);
             _listenerCts?.Cancel();
             _listenerCts?.Dispose();
             _listenerCts = null;
@@ -205,7 +207,7 @@ namespace SmartPowerManager
                 _trayMessageWindow.TrayIcon.Show();
         }
 
-        public void Dispose() => ExitApplication();
+        public void Dispose() => ExitApplication("dispose");
 
         private void MainWindow_Closed(object sender, WindowEventArgs e)
         {
@@ -295,7 +297,7 @@ namespace SmartPowerManager
                         {
                             if (_isExitingProcess || !_executorInitialized)
                                 return;
-                            EnsureSystemEventMonitor();
+                            EnsureResidentLifetime();
                             _executor.EnsureHealthy(announce: capturedDelay >= 90000);
                         }) ?? false))
                     {
@@ -312,9 +314,17 @@ namespace SmartPowerManager
             if (_isExitingProcess || !_executorInitialized)
                 return;
 
-            _executor.EnsureHealthy(announce: false);
-            BeginIntensiveHealthPeriod();
-            ScheduleDelayedHealthChecks();
+            try
+            {
+                EnsureResidentLifetime();
+                _executor.EnsureHealthy(announce: false);
+                BeginIntensiveHealthPeriod();
+                ScheduleDelayedHealthChecks();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"OnSystemResume failed: {ex.Message}");
+            }
         }
 
         /// <summary>専用スレッドからの復帰通知。Dispatcher 不通時は評価のみ直接実行する。</summary>
@@ -352,6 +362,7 @@ namespace SmartPowerManager
                         {
                             if (_isExitingProcess || !_executorInitialized)
                                 return;
+                            EnsureResidentLifetime();
                             _executor.EnsureHealthy(announce: false);
                         }) == true)
                     {
@@ -383,7 +394,7 @@ namespace SmartPowerManager
                             {
                                 if (_isExitingProcess || !_executorInitialized)
                                     return;
-                                EnsureSystemEventMonitor();
+                                EnsureResidentLifetime();
                                 // 評価はしない（同一分の再発火防止）。タイマー生存のみ保証する。
                                 _executor.EnsureHealthy(announce: false, evaluateSchedule: false);
                                 SyncThreadingHealthWatchdogInterval();
@@ -437,7 +448,14 @@ namespace SmartPowerManager
         private void EnsureSystemEventMonitor()
         {
             if (_systemEventInitialized)
-                return;
+            {
+                if (_systemEventWindow is { IsAlive: true })
+                    return;
+
+                _systemEventWindow?.Dispose();
+                _systemEventWindow = null;
+                _systemEventInitialized = false;
+            }
 
             try
             {
@@ -454,6 +472,33 @@ namespace SmartPowerManager
             }
         }
 
+        private void EnsureTrayAlive(bool reAddIcon = false)
+        {
+            if (_isExitingProcess || !ShouldUseTray())
+                return;
+
+            if (_trayInitialized && _trayMessageWindow is { IsAlive: true })
+            {
+                if (reAddIcon && !_settings.HideTrayIcon)
+                {
+                    try { _trayMessageWindow.TrayIcon.ReAdd(); }
+                    catch (Exception ex) { Debug.WriteLine($"Tray ReAdd failed: {ex.Message}"); }
+                }
+                return;
+            }
+
+            _trayMessageWindow?.Dispose();
+            _trayMessageWindow = null;
+            _trayInitialized = false;
+            EnsureTray();
+        }
+
+        private void EnsureResidentLifetime()
+        {
+            EnsureSystemEventMonitor();
+            EnsureTrayAlive(reAddIcon: true);
+        }
+
         private void EnsureTray()
         {
             if (_trayInitialized)
@@ -465,7 +510,7 @@ namespace SmartPowerManager
                 _trayMessageWindow = new TrayMessageWindow();
                 _trayMessageWindow.TrayIcon.OpenMainWindowRequested += () => ShowOrCreateMainWindow();
                 _trayMessageWindow.TrayIcon.OpenSettingsRequested += () => ShowOrCreateMainWindow("Settings");
-                _trayMessageWindow.TrayIcon.ExitRequested += () => GetDispatcherQueue()?.TryEnqueue(ExitApplication);
+                _trayMessageWindow.TrayIcon.ExitRequested += () => GetDispatcherQueue()?.TryEnqueue(() => ExitApplication("tray-menu"));
                 ApplyTrayIconVisibility();
             }
             catch
@@ -490,7 +535,7 @@ namespace SmartPowerManager
                 Task.Run(() => ListenShowLoop(showEvent, token, () => ShowOrCreateMainWindow()), token);
 
             if (exitEvent != null)
-                Task.Run(() => ListenLoop(exitEvent, token, () => GetDispatcherQueue()?.TryEnqueue(ExitApplication)), token);
+                Task.Run(() => ListenLoop(exitEvent, token, () => GetDispatcherQueue()?.TryEnqueue(() => ExitApplication("exit-signal"))), token);
         }
 
         /// <summary>Event に加え、ファイル show_signal も 500ms ポールで拾う（DispatcherTimer 停止中の二次起動対策）。</summary>
@@ -525,8 +570,7 @@ namespace SmartPowerManager
             {
                 try
                 {
-                    if (!handle.WaitOne(500))
-                        continue;
+                    handle.WaitOne(500);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -536,7 +580,8 @@ namespace SmartPowerManager
                 if (token.IsCancellationRequested)
                     break;
 
-                action();
+                if (SingleInstanceManager.TryConsumeExitSignal())
+                    action();
             }
         }
 
@@ -551,13 +596,27 @@ namespace SmartPowerManager
                 GetDispatcherQueue()?.TryEnqueue(() =>
                 {
                     if (!_isExitingProcess)
-                        ExitApplication();
+                        ExitApplication("debug-detach");
                 });
             }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }
 #endif
 
         private DispatcherQueue GetDispatcherQueue() => _uiDispatcher;
+
+        internal static void AppendLifetimeLog(string reason)
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.AppDataDirectory);
+                File.AppendAllText(
+                    Path.Combine(AppPaths.AppDataDirectory, "lifetime.log"),
+                    $"{DateTime.UtcNow:O} {reason}{Environment.NewLine}");
+            }
+            catch
+            {
+            }
+        }
 
         private static void BringWindowToForeground(Window window)
         {

@@ -12,6 +12,11 @@ namespace SmartPowerManager
     private const uint NIM_ADD = 0x00000000;
     private const uint NIM_MODIFY = 0x00000001;
     private const uint NIM_DELETE = 0x00000002;
+    private const uint NIM_SETVERSION = 0x00000004;
+    private const uint NOTIFYICON_VERSION_4 = 4;
+    private const uint NIN_SELECT = 0x0400;
+    private const uint NIN_KEYSELECT = 0x0401;
+    private const uint WM_CONTEXTMENU = 0x007B;
     private const uint NIF_MESSAGE = 0x00000001;
     private const uint NIF_ICON = 0x00000002;
     private const uint NIF_TIP = 0x00000004;
@@ -42,10 +47,7 @@ namespace SmartPowerManager
     public void Show()
     {
       if (_isVisible) return;
-
-      var data = CreateNotifyData();
-      Shell_NotifyIcon(NIM_ADD, ref data);
-      _isVisible = true;
+      AddIcon();
     }
 
     public void Hide()
@@ -57,16 +59,39 @@ namespace SmartPowerManager
       _isVisible = false;
     }
 
+    /// <summary>explorer 再生成やスリープ復帰後にアイコンを付け直す。</summary>
+    public void ReAdd()
+    {
+      var data = CreateNotifyData();
+      Shell_NotifyIcon(NIM_DELETE, ref data);
+      _isVisible = false;
+      AddIcon();
+    }
+
+    private void AddIcon()
+    {
+      var data = CreateNotifyData();
+      if (!Shell_NotifyIcon(NIM_ADD, ref data))
+      {
+        Shell_NotifyIcon(NIM_DELETE, ref data);
+        Shell_NotifyIcon(NIM_ADD, ref data);
+      }
+
+      data.uVersion = NOTIFYICON_VERSION_4;
+      Shell_NotifyIcon(NIM_SETVERSION, ref data);
+      _isVisible = true;
+    }
+
     public void ProcessMessage(IntPtr lParam)
     {
-      var msg = (uint)lParam.ToInt64();
-      if (msg == WM_LBUTTONDBLCLK)
+      uint msg = (uint)(lParam.ToInt64() & 0xFFFF);
+      if (msg == WM_LBUTTONDBLCLK || msg == NIN_SELECT || msg == NIN_KEYSELECT)
       {
         OpenMainWindowRequested?.Invoke();
         return;
       }
 
-      if (msg == WM_RBUTTONUP)
+      if (msg == WM_RBUTTONUP || msg == WM_CONTEXTMENU)
         ShowContextMenu();
     }
 
@@ -107,7 +132,9 @@ namespace SmartPowerManager
         uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
         uCallbackMessage = WM_TRAYICON,
         hIcon = _iconHandle,
-        szTip = Strings.Get("AppName")
+        szTip = Strings.Get("AppName"),
+        szInfo = string.Empty,
+        szInfoTitle = string.Empty
       };
     }
 
@@ -148,6 +175,14 @@ namespace SmartPowerManager
       public IntPtr hIcon;
       [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
       public string szTip;
+      public uint dwState;
+      public uint dwStateMask;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+      public string szInfo;
+      public uint uVersion;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+      public string szInfoTitle;
+      public uint dwInfoFlags;
     }
 
     [StructLayout(LayoutKind.Sequential)]

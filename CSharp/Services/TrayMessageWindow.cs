@@ -14,7 +14,9 @@ namespace SmartPowerManager
         private const uint WS_POPUP = 0x80000000;
         private const uint WS_EX_TOOLWINDOW = 0x00000080;
         private const uint WS_EX_NOACTIVATE = 0x08000000;
+        private const uint WM_CLOSE = 0x0010;
         private const int ERROR_CLASS_ALREADY_EXISTS = 1410;
+        private static readonly uint TaskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
         private static readonly WndProcDelegate StaticWndProc = WindowProc;
         private static bool _classRegistered;
@@ -25,6 +27,8 @@ namespace SmartPowerManager
         private TrayIconService? _trayIconService;
 
         public bool IsCreated => _hwnd != IntPtr.Zero;
+
+        public bool IsAlive => _hwnd != IntPtr.Zero && IsWindow(_hwnd);
 
         public TrayIconService TrayIcon =>
             _trayIconService ?? throw new InvalidOperationException("Tray icon is not initialized.");
@@ -80,15 +84,23 @@ namespace SmartPowerManager
 
         private static IntPtr WindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
+            IntPtr userData = GetWindowLongPtr(hWnd, GWLP_USERDATA);
+            TrayMessageWindow? target = userData != IntPtr.Zero
+                ? GCHandle.FromIntPtr(userData).Target as TrayMessageWindow
+                : null;
+
+            if (msg == WM_CLOSE)
+                return IntPtr.Zero;
+
             if (msg == TrayIconService.WM_TRAYICON)
             {
-                IntPtr userData = GetWindowLongPtr(hWnd, GWLP_USERDATA);
-                if (userData != IntPtr.Zero)
-                {
-                    var target = GCHandle.FromIntPtr(userData).Target as TrayMessageWindow;
-                    target?._trayIconService?.ProcessMessage(lParam);
-                }
+                target?._trayIconService?.ProcessMessage(lParam);
+                return IntPtr.Zero;
+            }
 
+            if (msg == TaskbarCreatedMessage)
+            {
+                target?._trayIconService?.ReAdd();
                 return IntPtr.Zero;
             }
 
@@ -144,6 +156,12 @@ namespace SmartPowerManager
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool DestroyWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint RegisterWindowMessage(string lpString);
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern IntPtr DefWindowProcW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
