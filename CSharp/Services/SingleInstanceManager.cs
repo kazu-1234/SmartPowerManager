@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace SmartPowerManager.Services;
@@ -18,6 +19,7 @@ internal static class SingleInstanceManager
     private static Mutex? _mutex;
     private static EventWaitHandle? _interactiveShowEvent;
     private static EventWaitHandle? _exitEvent;
+    private static bool _ownsMutex;
 
     private static string PidFilePath => Path.Combine(AppPaths.AppDataDirectory, ".instance_pid");
 
@@ -26,10 +28,23 @@ internal static class SingleInstanceManager
         _mutex = new Mutex(true, MutexName, out bool createdNew);
         if (!createdNew)
         {
-            if (requestInteractiveShow)
-                SignalInteractiveShow();
+            if (TryTakeOverAbandonedOrDeadPrimary())
+            {
+                createdNew = true;
+            }
+            else
+            {
+                if (requestInteractiveShow)
+                    SignalInteractiveShow();
 
-            return false;
+                _mutex.Dispose();
+                _mutex = null;
+                return false;
+            }
+        }
+        else
+        {
+            _ownsMutex = true;
         }
 
         _interactiveShowEvent = new EventWaitHandle(
@@ -43,6 +58,79 @@ internal static class SingleInstanceManager
 
         TryWritePidFile();
         return true;
+    }
+
+    /// <summary>
+    /// 放棄 Mutex、または PID ファイルのプロセスが死んでいる場合に primary を奪取する。
+    /// </summary>
+    private static bool TryTakeOverAbandonedOrDeadPrimary()
+    {
+        if (_mutex == null)
+            return false;
+
+        if (IsPrimaryProcessAlive())
+            return false;
+
+        try
+        {
+            if (_mutex.WaitOne(0))
+            {
+                _ownsMutex = true;
+                return true;
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            _ownsMutex = true;
+            return true;
+        }
+
+        try
+        {
+            if (_mutex.WaitOne(TimeSpan.FromMilliseconds(200)))
+            {
+                _ownsMutex = true;
+                return true;
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            _ownsMutex = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsPrimaryProcessAlive()
+    {
+        try
+        {
+            if (!File.Exists(PidFilePath))
+                return false;
+
+            if (!int.TryParse(File.ReadAllText(PidFilePath).Trim(), out int pid))
+                return false;
+
+            if (pid == Environment.ProcessId)
+                return false;
+
+            using Process process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch
+        {
+            // 権限エラー等は「生きている」とみなし、生きている primary を奪取しない
+            return true;
+        }
     }
 
     public static EventWaitHandle? InteractiveShowEvent => _interactiveShowEvent;
@@ -92,6 +180,23 @@ internal static class SingleInstanceManager
         }
     }
 
+    /// <summary>ファイル信号があれば消費して true。</summary>
+    public static bool TryConsumeShowSignal()
+    {
+        if (!File.Exists(AppPaths.SignalFilePath))
+            return false;
+
+        try
+        {
+            File.Delete(AppPaths.SignalFilePath);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static void Release()
     {
         TryDeletePidFile();
@@ -103,7 +208,11 @@ internal static class SingleInstanceManager
 
         if (_mutex != null)
         {
-            try { _mutex.ReleaseMutex(); } catch { }
+            if (_ownsMutex)
+            {
+                try { _mutex.ReleaseMutex(); } catch { }
+                _ownsMutex = false;
+            }
             _mutex.Dispose();
             _mutex = null;
         }

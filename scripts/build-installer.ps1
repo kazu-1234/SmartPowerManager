@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$version = "2.0.41"
+$version = "2.1.9"
 $publishDir = Join-Path $root "dist\folder"
 $iss = Join-Path $root "installer\SmartPowerManager.iss"
 $outDir = Join-Path $root "dist\installer"
@@ -35,7 +35,6 @@ dotnet publish $csproj `
     -p:Platform=x64 `
     -r win-x64 `
     --self-contained true `
-    -p:WindowsAppSDKSelfContained=true `
     -p:PublishSingleFile=false `
     -o $publishDir
 

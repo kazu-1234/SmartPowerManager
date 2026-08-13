@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using SmartPowerManager.Models;
 using SmartPowerManager.Services;
+using WinUiShared;
 
 namespace SmartPowerManager.Views;
 
@@ -14,12 +15,14 @@ public sealed partial class WakePage : Page, ISchedulePage
     private RealtimeClockService.Tracker? _weeklyTracker;
     private RealtimeClockService.Tracker? _onetimeTracker;
     private bool _dailyRealtimeActive = true;
+    private bool _suppressDailyToggle;
 
     public WakePage()
     {
         InitializeComponent();
         SchedulePageFillLayout.Attach(this, LeftCard, RightCard, syncLeftAndRightHeights: false);
         CompactComboBoxHelper.Attach(WeeklyWeekdayBox);
+        ToggleSwitchClickHelper.ProtectFromParentCapture(DailyToggle);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -72,7 +75,18 @@ public sealed partial class WakePage : Page, ISchedulePage
             return;
 
         var daily = _state.ScheduleManager.Data.PicoSettings.StartupDaily;
-        DailyToggle.IsOn = daily.Enabled;
+        if (DailyToggle.IsOn != daily.Enabled)
+        {
+            _suppressDailyToggle = true;
+            try
+            {
+                DailyToggle.IsOn = daily.Enabled;
+            }
+            finally
+            {
+                _suppressDailyToggle = false;
+            }
+        }
         DailyTimeInput.Time = new TimeSpan(daily.Hour, daily.Minute, 0);
         _dailyRealtimeActive = !daily.Enabled;
         RightCard.Refresh();
@@ -80,7 +94,7 @@ public sealed partial class WakePage : Page, ISchedulePage
 
     private void DailyToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_isInitializing || _state == null)
+        if (_isInitializing || _suppressDailyToggle || _state == null)
             return;
 
         _dailyRealtimeActive = !DailyToggle.IsOn;

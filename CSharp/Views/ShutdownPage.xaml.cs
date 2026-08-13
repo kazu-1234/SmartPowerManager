@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using SmartPowerManager.Services;
+using WinUiShared;
 
 namespace SmartPowerManager.Views;
 
@@ -14,6 +15,7 @@ public sealed partial class ShutdownPage : Page, ISchedulePage
     private RealtimeClockService.Tracker? _onetimeTracker;
     private bool _dailyRealtimeActive = true;
     private bool _suppressMonitorToggle;
+    private bool _suppressDailyToggle;
     private const string Action = AppConstants.ActionShutdown;
 
     public ShutdownPage()
@@ -21,6 +23,8 @@ public sealed partial class ShutdownPage : Page, ISchedulePage
         InitializeComponent();
         SchedulePageFillLayout.Attach(this, LeftCard, RightCard);
         CompactComboBoxHelper.Attach(WeeklyWeekdayBox);
+        ToggleSwitchClickHelper.ProtectFromParentCapture(MonitorToggle);
+        ToggleSwitchClickHelper.ProtectFromParentCapture(DailyToggle);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -74,7 +78,18 @@ public sealed partial class ShutdownPage : Page, ISchedulePage
             return;
 
         var daily = _state.ScheduleManager.GetDaily(Action);
-        DailyToggle.IsOn = daily.Enabled;
+        if (DailyToggle.IsOn != daily.Enabled)
+        {
+            _suppressDailyToggle = true;
+            try
+            {
+                DailyToggle.IsOn = daily.Enabled;
+            }
+            finally
+            {
+                _suppressDailyToggle = false;
+            }
+        }
         DailyTimeInput.Time = new TimeSpan(daily.Hour, daily.Minute, 0);
         _dailyRealtimeActive = !daily.Enabled;
 
@@ -125,7 +140,7 @@ public sealed partial class ShutdownPage : Page, ISchedulePage
 
     private async void DailyToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_isInitializing || _state == null)
+        if (_isInitializing || _suppressDailyToggle || _state == null)
             return;
 
         var time = DailyTimeInput.Time;

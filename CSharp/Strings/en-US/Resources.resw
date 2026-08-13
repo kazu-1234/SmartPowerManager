@@ -66,16 +66,33 @@
   <data name="Page_Settings.Text" xml:space="preserve"><value>Settings</value></data>
   <data name="Settings_SectionAppearanceLabel.Text" xml:space="preserve"><value>Appearance</value></data>
   <data name="Settings_ThemeLabel.Text" xml:space="preserve"><value>Theme</value></data>
-  <data name="Settings_ThemeDescLabel.Text" xml:space="preserve"><value>Light / Dark / System</value></data>
-  <data name="Settings_SectionStartupLabel.Text" xml:space="preserve"><value>Startup</value></data>
+  <data name="Settings_ThemeDescLabel.Text" xml:space="preserve"><value>System / Light / Dark</value></data>
+  <data name="Settings_SectionStartupLabel.Text" xml:space="preserve"><value>Automatic startup</value></data>
   <data name="Settings_AutoStartLabel.Text" xml:space="preserve"><value>Start at logon</value></data>
   <data name="Settings_AutoStartDescLabel.Text" xml:space="preserve"><value>Launch in the system tray at Windows logon (Task Scheduler)</value></data>
+  <data name="Settings_AutoStartExpander.Header" xml:space="preserve"><value>Run SmartPowerManager when Windows starts</value></data>
+  <data name="Settings_AutostartTaskOnly.Content" xml:space="preserve"><value>Run as a logon task instead of registering for Startup</value></data>
+  <data name="Settings_RefreshAutostart.Content" xml:space="preserve"><value>Refresh automatic startup info</value></data>
+  <data name="Settings_AutostartType_Format" xml:space="preserve"><value>Type: {0}</value></data>
+  <data name="Settings_AutostartPath_Format" xml:space="preserve"><value>Path: {0}</value></data>
+  <data name="Settings_AutostartMode_TaskShort" xml:space="preserve"><value>Task</value></data>
+  <data name="Settings_AutostartMode_StartupShort" xml:space="preserve"><value>Startup</value></data>
+  <data name="Settings_AutostartMode_Disabled" xml:space="preserve"><value>Disabled</value></data>
   <data name="Settings_AutostartModeLabel.Text" xml:space="preserve"><value>Registration method</value></data>
   <data name="Settings_AutostartPathLabel.Text" xml:space="preserve"><value>Registered command</value></data>
   <data name="Settings_HideTrayIcon.Content" xml:space="preserve"><value>Hide tray icon</value></data>
   <data name="Settings_SectionDeviceLabel.Text" xml:space="preserve"><value>Device integration</value></data>
   <data name="Info_SectionUpdate.Text" xml:space="preserve"><value>Updates</value></data>
   <data name="Info_UpdateDesc.Text" xml:space="preserve"><value>Check for the latest version from GitHub Releases</value></data>
+  <data name="Info_LastUpdateCheck_Format" xml:space="preserve"><value>Last checked: {0}</value></data>
+  <data name="Info_LastUpdateCheck_Never" xml:space="preserve"><value>Last checked: Never</value></data>
+  <data name="Info_LastUpdateCheck_DateFormat" xml:space="preserve"><value>yyyy/MM/dd HH:mm:ss</value></data>
+  <data name="Info_AutoUpdateLabel.Text" xml:space="preserve"><value>Automatically check for updates</value></data>
+  <data name="Info_AutoUpdateDesc.Text" xml:space="preserve"><value>Check for updates at startup and install after confirmation when a new version is available</value></data>
+  <data name="Update_StartupDialogTitle" xml:space="preserve"><value>Update available</value></data>
+  <data name="Update_StartupDialogContent" xml:space="preserve"><value>{0}&#x0a;&#x0a;Update now?</value></data>
+  <data name="Update_StartupDialogInstall" xml:space="preserve"><value>Yes</value></data>
+  <data name="Update_StartupDialogLater" xml:space="preserve"><value>No</value></data>
   <data name="Info_CheckUpdate.Content" xml:space="preserve"><value>Check for updates</value></data>
   <data name="Info_InstallUpdate.Content" xml:space="preserve"><value>Download and run installer</value></data>
   <data name="Info_SectionDisclaimer.Text" xml:space="preserve"><value>Disclaimer</value></data>
@@ -103,11 +120,11 @@
   <data name="Wake_SyncButton" xml:space="preserve"><value>今すぐ同期</value></data>
   <data name="Wake_LogHeader" xml:space="preserve"><value>同期ログ</value></data>
   <data name="Settings_SectionAppearance" xml:space="preserve"><value>外観</value></data>
-  <data name="Settings_Theme" xml:space="preserve"><value>テーマ</value></data>
-  <data name="Settings_ThemeDesc" xml:space="preserve"><value>ライト / ダーク / システム連動</value></data>
-  <data name="Theme_System" xml:space="preserve"><value>システム</value></data>
-  <data name="Theme_Light" xml:space="preserve"><value>ライト</value></data>
-  <data name="Theme_Dark" xml:space="preserve"><value>ダーク</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="Settings_ThemeDesc" xml:space="preserve"><value>System / Light / Dark</value></data>
+  <data name="Theme_System" xml:space="preserve"><value>Follow system settings</value></data>
+  <data name="Theme_Light" xml:space="preserve"><value>Always light</value></data>
+  <data name="Theme_Dark" xml:space="preserve"><value>Always dark</value></data>
   <data name="Settings_SectionStartup" xml:space="preserve"><value>起動設定</value></data>
   <data name="Settings_AutoStart" xml:space="preserve"><value>ログオン時に自動起動</value></data>
   <data name="Settings_AutoStartDesc" xml:space="preserve"><value>Windows ログオン時にタスクトレイ常駐で起動します（タスクスケジューラ方式）</value></data>

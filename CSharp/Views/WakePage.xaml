@@ -5,6 +5,9 @@
     xmlns:views="using:SmartPowerManager.Views"
     HorizontalAlignment="Stretch"
     VerticalAlignment="Stretch">
+    <Page.Resources>
+        <x:Double x:Key="ToggleSwitchThemeMinWidth">0</x:Double>
+    </Page.Resources>
     <views:PageScrollHost>
         <Grid x:Name="PageRoot" Style="{StaticResource PageBaseContentGridStyle}">
             <Grid.RowDefinitions>
@@ -143,7 +146,7 @@
                                                   MinWidth="74"
                                                   MaxWidth="74" />
                                         <views:CompactTimeInput x:Name="WeeklyTimeInput" />
-                                        <Button Content="追加" Style="{StaticResource PrimaryActionButtonStyle}" Click="AddWeeklyButton_Click" />
+                                        <Button Content="追加" Style="{StaticResource ScheduleAddButtonStyle}" Click="AddWeeklyButton_Click" />
                                     </StackPanel>
                                 </Grid>
                                 <Border Grid.Row="1" Style="{StaticResource ScheduleRowDividerStyle}" />
@@ -168,7 +171,7 @@
                                                     VerticalAlignment="Center">
                                             <views:CompactDateTimeInput x:Name="OnetimeDateTimeInput" />
                                             <Button Content="追加"
-                                                    Style="{StaticResource PrimaryActionButtonStyle}"
+                                                    Style="{StaticResource ScheduleAddButtonStyle}"
                                                     VerticalAlignment="Center"
                                                     Click="AddOnetimeButton_Click" />
                                         </StackPanel>

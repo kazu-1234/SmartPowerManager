@@ -1,16 +1,23 @@
 using System;
 using System.IO;
 using Newtonsoft.Json;
+using WinUiShared;
 
 namespace SmartPowerManager
 {
-    public class Settings
+    public class Settings : IUpdateSettings
     {
         /// <summary>デフォルトはシステム連動。</summary>
         public AppThemePreference ThemePreference { get; set; } = AppThemePreference.System;
 
         /// <summary>ログオンタスクによる自動起動。</summary>
         public bool AutoStart { get; set; }
+
+        /// <summary>
+        /// true: ログオンタスクで起動（既定）。
+        /// false: スタートアップ（レジストリ Run）に登録。
+        /// </summary>
+        public bool UseLogonTask { get; set; } = true;
 
         /// <summary>true のときタスクトレイアイコンを表示しない。</summary>
         public bool HideTrayIcon { get; set; }
@@ -32,6 +39,12 @@ namespace SmartPowerManager
 
         /// <summary>再起動予定の監視（実行）が有効か。</summary>
         public bool MonitoringEnabledRestart { get; set; } = true;
+
+        /// <summary>起動時（初回 MainWindow 表示時）に更新を自動確認する。</summary>
+        public bool AutoCheckUpdateOnStartup { get; set; } = true;
+
+        /// <summary>最後に更新確認した UTC 時刻。未確認は null。</summary>
+        public DateTime? LastUpdateCheckUtc { get; set; }
 
         /// <summary>旧設定互換。読み込み時のみ使用。</summary>
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]

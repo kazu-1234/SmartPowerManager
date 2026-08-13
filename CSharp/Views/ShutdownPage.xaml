@@ -5,6 +5,9 @@
     xmlns:views="using:SmartPowerManager.Views"
     HorizontalAlignment="Stretch"
     VerticalAlignment="Stretch">
+    <Page.Resources>
+        <x:Double x:Key="ToggleSwitchThemeMinWidth">0</x:Double>
+    </Page.Resources>
     <views:PageScrollHost>
         <Grid x:Name="PageRoot" Style="{StaticResource PageBaseContentGridStyle}">
             <Grid.RowDefinitions>
@@ -64,8 +67,7 @@
                 <StackPanel x:Name="LeftColumn" Spacing="0">
                     <TextBlock Text="スケジュール設定" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
                     <Border x:Name="LeftCard" Style="{StaticResource ScheduleCardBorderStyle}">
-                        <ContentControl FontSize="15"
-                                        HorizontalContentAlignment="Stretch"
+                        <ContentControl HorizontalContentAlignment="Stretch"
                                         VerticalContentAlignment="Stretch"
                                         HorizontalAlignment="Stretch"
                                         VerticalAlignment="Stretch">
@@ -75,7 +77,7 @@
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" MinHeight="88" />
+                                    <RowDefinition Height="Auto" MinHeight="72" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
@@ -181,7 +183,7 @@
                                                   MinWidth="74"
                                                   MaxWidth="74" />
                                             <views:CompactTimeInput x:Name="WeeklyTimeInput" />
-                                            <Button Content="追加" Style="{StaticResource PrimaryActionButtonStyle}" Click="AddWeeklyButton_Click" />
+                                            <Button Content="追加" Style="{StaticResource ScheduleAddButtonStyle}" Click="AddWeeklyButton_Click" />
                                         </StackPanel>
                                     </Grid>
                                     <Border Grid.Row="1" Style="{StaticResource ScheduleRowDividerStyle}" />
@@ -208,7 +210,7 @@
                                                     VerticalAlignment="Center">
                                             <views:CompactDateTimeInput x:Name="OnetimeDateTimeInput" />
                                             <Button Content="追加"
-                                                    Style="{StaticResource PrimaryActionButtonStyle}"
+                                                    Style="{StaticResource ScheduleAddButtonStyle}"
                                                     VerticalAlignment="Center"
                                                     Click="AddOnetimeButton_Click" />
                                         </StackPanel>
@@ -240,7 +242,7 @@
 
                 <StackPanel x:Name="RightColumn" Grid.Column="1" Spacing="0">
                     <TextBlock Text="スケジュール一覧" Style="{StaticResource SettingsSectionHeaderFirstStyle}" />
-                    <views:UpcomingSchedulePanel x:Name="RightCard" FontSize="15" />
+                    <views:UpcomingSchedulePanel x:Name="RightCard" />
                 </StackPanel>
             </Grid>
         </Grid>

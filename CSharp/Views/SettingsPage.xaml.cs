@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using SmartPowerManager.Services;
 using Windows.System;
+using WinUiShared;
 
 namespace SmartPowerManager.Views;
 
@@ -14,7 +15,9 @@ public sealed partial class SettingsPage : Page
     public SettingsPage()
     {
         InitializeComponent();
-        CompactComboBoxHelper.Attach(ThemeComboBox);
+        CompactComboBoxHelper.AttachFitToSelectedText(ThemeComboBox);
+        ToggleSwitchClickHelper.ProtectFromParentCapture(AutoStartToggle);
+        AutostartExpandHelper.AttachSkipInitialAnimation(AutoStartExpander);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -35,7 +38,9 @@ public sealed partial class SettingsPage : Page
         };
 
         AutoStartToggle.IsOn = _state?.Settings.AutoStart ?? false;
+        AutostartTaskOnlyCheckBox.IsChecked = _state?.Settings.UseLogonTask ?? true;
         HideTrayIconCheckBox.IsChecked = _state?.Settings.HideTrayIcon ?? false;
+        AutoStartExpander.IsExpanded = true;
         RefreshAutostartInfo();
         LoadDeviceSettings();
         _isInitializing = false;
@@ -83,8 +88,31 @@ public sealed partial class SettingsPage : Page
 
     private void RefreshAutostartInfo()
     {
-        AutostartModeText.Text = Strings.Get("Settings_AutostartMode_Task");
-        AutostartPathText.Text = StartupManager.GetRegisteredCommand() ?? Strings.Get("Settings_Autostart_NotRegistered");
+        bool enabled = _state?.Settings.AutoStart ?? false;
+        bool useLogonTask = _state?.Settings.UseLogonTask ?? true;
+
+        AutostartTypeLine.Text = AutostartInfoFormatter.FormatTypeLine(
+            enabled,
+            useLogonTask,
+            Strings.Get,
+            (key, args) => Strings.Format(key, args));
+
+        AutostartPathLine.Text = AutostartInfoFormatter.FormatPathLine(
+            enabled,
+            StartupManager.GetRegisteredCommand(preferLogonTask: useLogonTask),
+            Strings.Get,
+            (key, args) => Strings.Format(key, args));
+    }
+
+    private void RefreshAutostartButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_state == null)
+            return;
+
+        if (_state.Settings.AutoStart)
+            StartupManager.SyncAutostartWithSettings(true, _state.Settings.UseLogonTask);
+
+        RefreshAutostartInfo();
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -99,7 +127,7 @@ public sealed partial class SettingsPage : Page
             _ => AppThemePreference.System
         };
 
-        ThemeService.SetPreference(preference);
+        ThemeService.SetPreference(preference, save: false);
         _state.Settings.ThemePreference = preference;
         _state.Settings.Save();
     }
@@ -110,7 +138,8 @@ public sealed partial class SettingsPage : Page
             return;
 
         bool requested = AutoStartToggle.IsOn;
-        bool ok = StartupManager.SyncAutostartWithSettings(requested);
+        bool useLogonTask = _state.Settings.UseLogonTask;
+        bool ok = StartupManager.SyncAutostartWithSettings(requested, useLogonTask);
         if (!ok && requested)
         {
             _isInitializing = true;
@@ -120,6 +149,35 @@ public sealed partial class SettingsPage : Page
         }
 
         _state.Settings.AutoStart = requested;
+        _state.Settings.Save();
+        RefreshAutostartInfo();
+    }
+
+    private void AutostartTaskOnlyCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing || _state == null)
+            return;
+
+        bool useLogonTask = AutostartTaskOnlyCheckBox.IsChecked == true;
+        if (useLogonTask == _state.Settings.UseLogonTask)
+            return;
+
+        _state.Settings.UseLogonTask = useLogonTask;
+
+        if (_state.Settings.AutoStart)
+        {
+            bool ok = StartupManager.SyncAutostartWithSettings(true, useLogonTask);
+            if (!ok)
+            {
+                // 切替失敗時は元の方式に戻す
+                _isInitializing = true;
+                _state.Settings.UseLogonTask = !useLogonTask;
+                AutostartTaskOnlyCheckBox.IsChecked = !useLogonTask;
+                _isInitializing = false;
+                return;
+            }
+        }
+
         _state.Settings.Save();
         RefreshAutostartInfo();
     }

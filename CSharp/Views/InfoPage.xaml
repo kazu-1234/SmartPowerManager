@@ -17,7 +17,7 @@
                     <controls:SettingsCard.Header>
                         <StackPanel Spacing="4" MinWidth="0">
                             <TextBlock x:Name="VersionText" Style="{StaticResource CardHeaderTextStyle}" />
-                            <TextBlock x:Uid="Info_UpdateDesc" Style="{StaticResource CardDescriptionTextStyle}" />
+                            <TextBlock x:Name="LastUpdateCheckText" Style="{StaticResource CardDescriptionTextStyle}" />
                         </StackPanel>
                     </controls:SettingsCard.Header>
                     <Button x:Name="CheckUpdateButton"
@@ -26,6 +26,16 @@
                 </controls:SettingsCard>
 
                 <InfoBar x:Name="UpdateInfoBar" IsOpen="False" IsClosable="True" HorizontalAlignment="Stretch" />
+
+                <controls:SettingsCard x:Name="AutoUpdateToggleCard">
+                    <controls:SettingsCard.Header>
+                        <StackPanel Spacing="4" MinWidth="0">
+                            <TextBlock x:Uid="Info_AutoUpdateLabel" Style="{StaticResource CardHeaderTextStyle}" />
+                            <TextBlock x:Uid="Info_AutoUpdateDesc" Style="{StaticResource CardDescriptionTextStyle}" />
+                        </StackPanel>
+                    </controls:SettingsCard.Header>
+                    <ToggleSwitch x:Name="AutoUpdateToggle" Toggled="AutoUpdateToggle_Toggled" />
+                </controls:SettingsCard>
 
                 <controls:SettingsCard x:Name="InstallUpdateCard" Visibility="Collapsed">
                     <controls:SettingsCard.Description>

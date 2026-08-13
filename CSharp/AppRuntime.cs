@@ -36,6 +36,7 @@ namespace SmartPowerManager
         private bool _executorInitialized;
         private bool _systemEventInitialized;
         private bool _isExitingProcess;
+        private bool _startupUpdateCheckScheduled;
 #if DEBUG
         private Timer? _debuggerDetachTimer;
 #endif
@@ -129,6 +130,16 @@ namespace SmartPowerManager
             _mainWindow = new MainWindow(this);
             _mainWindow.Closed += MainWindow_Closed;
             _mainWindow.PrepareAndActivate(pageTag);
+            ScheduleStartupUpdateCheckIfNeeded();
+        }
+
+        private void ScheduleStartupUpdateCheckIfNeeded()
+        {
+            if (_startupUpdateCheckScheduled || _mainWindow == null)
+                return;
+
+            _startupUpdateCheckScheduled = true;
+            _ = UpdateFlowService.TryStartupCheckAsync(_mainWindow, _settings);
         }
 
         public void OnMainWindowClosing(MainWindow window)
@@ -318,9 +329,36 @@ namespace SmartPowerManager
             if (_isExitingProcess || !_executorInitialized)
                 return;
 
+            // Dispatcher 不通時は評価のみ直接実行（DispatcherTimer は UI スレッド専用）
             _executor.EvaluateScheduleNow();
             BeginIntensiveHealthPeriod();
             ScheduleDelayedHealthChecks();
+
+            // Dispatcher 復帰後に EnsureHealthy（Stop→Start）を再試行
+            _ = Task.Run(async () =>
+            {
+                for (int i = 0; i < 10 && !_isExitingProcess; i++)
+                {
+                    try
+                    {
+                        await Task.Delay(500).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+
+                    if (GetDispatcherQueue()?.TryEnqueue(() =>
+                        {
+                            if (_isExitingProcess || !_executorInitialized)
+                                return;
+                            _executor.EnsureHealthy(announce: false);
+                        }) == true)
+                    {
+                        return;
+                    }
+                }
+            });
         }
 
         private void BeginIntensiveHealthPeriod()
@@ -449,10 +487,36 @@ namespace SmartPowerManager
             var token = _listenerCts.Token;
 
             if (showEvent != null)
-                Task.Run(() => ListenLoop(showEvent, token, () => ShowOrCreateMainWindow()), token);
+                Task.Run(() => ListenShowLoop(showEvent, token, () => ShowOrCreateMainWindow()), token);
 
             if (exitEvent != null)
                 Task.Run(() => ListenLoop(exitEvent, token, () => GetDispatcherQueue()?.TryEnqueue(ExitApplication)), token);
+        }
+
+        /// <summary>Event に加え、ファイル show_signal も 500ms ポールで拾う（DispatcherTimer 停止中の二次起動対策）。</summary>
+        private static void ListenShowLoop(EventWaitHandle handle, CancellationToken token, Action action)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                bool signaled = false;
+                try
+                {
+                    signaled = handle.WaitOne(500);
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+
+                if (!signaled)
+                    signaled = SingleInstanceManager.TryConsumeShowSignal();
+
+                if (token.IsCancellationRequested)
+                    break;
+
+                if (signaled)
+                    action();
+            }
         }
 
         private static void ListenLoop(EventWaitHandle handle, CancellationToken token, Action action)

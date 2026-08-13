@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SmartPowerManager", "CSharp\SmartPowerManager.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WinUiShared", "..\WinUiAppTemplate\Shared\WinUiShared.csproj", "{B7E4C1A0-8D2F-4E91-9C3A-1F6B0A2D4E88}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +17,10 @@ Global
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.Build.0 = Debug|x64
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.ActiveCfg = Release|x64
 		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.Build.0 = Release|x64
+		{B7E4C1A0-8D2F-4E91-9C3A-1F6B0A2D4E88}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B7E4C1A0-8D2F-4E91-9C3A-1F6B0A2D4E88}.Debug|x64.Build.0 = Debug|Any CPU
+		{B7E4C1A0-8D2F-4E91-9C3A-1F6B0A2D4E88}.Release|x64.ActiveCfg = Release|Any CPU
+		{B7E4C1A0-8D2F-4E91-9C3A-1F6B0A2D4E88}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

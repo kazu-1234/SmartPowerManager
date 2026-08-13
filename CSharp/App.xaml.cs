@@ -1,4 +1,4 @@
-﻿// v2.0.41
+﻿// v2.1.9
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
@@ -45,17 +45,12 @@ namespace SmartPowerManager
             if (HasCommandLineArg("--sync-autostart"))
             {
                 var syncSettings = Settings.Load();
-                StartupManager.SyncAutostartWithSettings(syncSettings.AutoStart);
+                StartupManager.SyncAutostartWithSettings(syncSettings.AutoStart, syncSettings.UseLogonTask);
                 Exit();
                 return;
             }
 
-            StartupManager.MigrateFromPythonRegistryIfNeeded();
-
             var settings = Settings.Load();
-            StartupManager.SyncAutostartWithSettings(settings.AutoStart);
-            settings.Save();
-
             bool launchInBackground = HasCommandLineArg("--background");
             bool requestInteractiveShow = !launchInBackground;
 
@@ -64,6 +59,14 @@ namespace SmartPowerManager
                 Exit();
                 return;
             }
+
+            // スタートアップ（レジストリ）方式を選んでいるときは移行で Run を消さない
+            if (settings.UseLogonTask)
+                StartupManager.MigrateFromPythonRegistryIfNeeded();
+
+            // primary のみタスクを更新する（--background 二重起動の CreateOrUpdate で本体が落ちるのを防ぐ）
+            StartupManager.SyncAutostartWithSettings(settings.AutoStart, settings.UseLogonTask);
+            settings.Save();
 
             _runtime = new AppRuntime(this, settings);
             _runtime.Start(launchInBackground, requestInteractiveShow);

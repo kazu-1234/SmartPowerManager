@@ -17,7 +17,6 @@
             <x:Double x:Key="CompactComboBoxPartWidth">62</x:Double>
             <x:Double x:Key="CompactComboBoxYearWidth">78</x:Double>
             <x:Double x:Key="CompactComboBoxWeekdayWidth">74</x:Double>
-            <x:Double x:Key="CompactComboBoxThemeWidth">82</x:Double>
 
             <Style x:Key="PageHostScrollViewerStyle" TargetType="ScrollViewer">
                 <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
@@ -64,6 +63,7 @@
             </Style>
 
             <Style x:Key="CardDescriptionTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="FontSize" Value="13" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                 <Setter Property="TextWrapping" Value="Wrap" />
             </Style>
@@ -84,6 +84,16 @@
             <Style x:Key="PrimaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
                 <Setter Property="Padding" Value="16,8" />
                 <Setter Property="HorizontalAlignment" Value="Left" />
+            </Style>
+
+            <!-- 「追加」: Accent（青）維持、余白はキャンセルと同系、高さは CompactComboBox に合わせる -->
+            <Style x:Key="ScheduleAddButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+                <Setter Property="Padding" Value="14,0" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="{ThemeResource ComboBoxMinHeight}" />
+                <Setter Property="Height" Value="{ThemeResource ComboBoxMinHeight}" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
 
             <Style x:Key="SecondaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
@@ -114,7 +124,7 @@
             </Style>
 
             <Style x:Key="ScheduleToggleSwitchStyle" TargetType="ToggleSwitch">
-                <!-- レイアウト幅をスイッチ本体分確保し、右端で切れないようにする -->
+                <!-- 幅 44 で位置を固定。内部 154 は各スケジュール Page の ToggleSwitchThemeMinWidth=0 で落とす（Style.Resources は WinUI 非対応） -->
                 <Setter Property="MinWidth" Value="44" />
                 <Setter Property="MaxWidth" Value="44" />
                 <Setter Property="Padding" Value="0" />
@@ -164,10 +174,13 @@
                 <Setter Property="MaxWidth" Value="{StaticResource CompactComboBoxWeekdayWidth}" />
             </Style>
 
-            <Style x:Key="CompactComboBoxThemeStyle" TargetType="ComboBox" BasedOn="{StaticResource CompactComboBoxStyle}">
-                <Setter Property="Width" Value="{StaticResource CompactComboBoxThemeWidth}" />
-                <Setter Property="MinWidth" Value="{StaticResource CompactComboBoxThemeWidth}" />
-                <Setter Property="MaxWidth" Value="{StaticResource CompactComboBoxThemeWidth}" />
+            <!-- テーマ ComboBox: 右端位置は維持。文字左 Padding と「う」〜▽ の隙間は Helper 側 -->
+            <Style x:Key="CompactComboBoxThemeStyle" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+                <Setter Property="Padding" Value="12,2,0,2" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="HorizontalAlignment" Value="Right" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="HorizontalContentAlignment" Value="Left" />
             </Style>
 
             <Style x:Key="CompactNumberBoxStyle" TargetType="NumberBox">
@@ -179,7 +192,7 @@
             </Style>
 
             <Style x:Key="ScheduleFormRowStyle" TargetType="Grid">
-                <Setter Property="Padding" Value="0,4" />
+                <Setter Property="Padding" Value="0,2" />
                 <Setter Property="VerticalAlignment" Value="Stretch" />
             </Style>
 

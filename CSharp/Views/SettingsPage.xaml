@@ -22,44 +22,58 @@
                     </controls:SettingsCard.Header>
                     <ComboBox x:Name="ThemeComboBox"
                               Style="{StaticResource CompactComboBoxThemeStyle}"
-                              Width="82"
-                              MinWidth="82"
-                              MaxWidth="82"
                               SelectionChanged="ThemeComboBox_SelectionChanged" />
                 </controls:SettingsCard>
 
                 <TextBlock x:Uid="Settings_SectionStartupLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-                <controls:SettingsCard>
-                    <controls:SettingsCard.Header>
-                        <StackPanel Spacing="4" MinWidth="0">
-                            <TextBlock x:Uid="Settings_AutoStartLabel" Style="{StaticResource CardHeaderTextStyle}" />
-                            <TextBlock x:Uid="Settings_AutoStartDescLabel" Style="{StaticResource CardDescriptionTextStyle}" />
-                        </StackPanel>
-                    </controls:SettingsCard.Header>
+                <controls:SettingsExpander x:Name="AutoStartExpander"
+                                           x:Uid="Settings_AutoStartExpander"
+                                           IsExpanded="True">
+                    <!-- 既定 58,8,44,8 だと独立カードより左右が内側にずれる。16 で独立 SettingsCard と同じ端位置に揃える -->
+                    <controls:SettingsExpander.Resources>
+                        <Thickness x:Key="SettingsExpanderItemPadding">16,8,16,8</Thickness>
+                        <Thickness x:Key="ClickableSettingsExpanderItemPadding">16,8,16,8</Thickness>
+                    </controls:SettingsExpander.Resources>
                     <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
-                </controls:SettingsCard>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard>
+                            <controls:SettingsCard.Header>
+                                <CheckBox x:Name="AutostartTaskOnlyCheckBox"
+                                          x:Uid="Settings_AutostartTaskOnly"
+                                          VerticalAlignment="Center"
+                                          IsChecked="True"
+                                          Checked="AutostartTaskOnlyCheckBox_Changed"
+                                          Unchecked="AutostartTaskOnlyCheckBox_Changed" />
+                            </controls:SettingsCard.Header>
+                        </controls:SettingsCard>
 
-                <controls:SettingsCard>
-                    <controls:SettingsCard.Description>
-                        <StackPanel Spacing="8">
-                            <TextBlock x:Uid="Settings_AutostartModeLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="AutostartModeText" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" />
-                            <TextBlock x:Uid="Settings_AutostartPathLabel" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="AutostartPathText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                        </StackPanel>
-                    </controls:SettingsCard.Description>
-                </controls:SettingsCard>
+                        <controls:SettingsCard>
+                            <controls:SettingsCard.Header>
+                                <StackPanel Spacing="4" MinWidth="0">
+                                    <TextBlock x:Name="AutostartTypeLine" FontSize="13" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="AutostartPathLine"
+                                               FontSize="13"
+                                               TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True" />
+                                </StackPanel>
+                            </controls:SettingsCard.Header>
+                            <Button x:Name="RefreshAutostartButton"
+                                    x:Uid="Settings_RefreshAutostart"
+                                    Click="RefreshAutostartButton_Click" />
+                        </controls:SettingsCard>
 
-                <controls:SettingsCard>
-                    <controls:SettingsCard.Header>
-                        <CheckBox x:Name="HideTrayIconCheckBox"
-                                  x:Uid="Settings_HideTrayIcon"
-                                  VerticalAlignment="Center"
-                                  Checked="HideTrayIconCheckBox_Changed"
-                                  Unchecked="HideTrayIconCheckBox_Changed" />
-                    </controls:SettingsCard.Header>
-                </controls:SettingsCard>
+                        <controls:SettingsCard>
+                            <controls:SettingsCard.Header>
+                                <CheckBox x:Name="HideTrayIconCheckBox"
+                                          x:Uid="Settings_HideTrayIcon"
+                                          VerticalAlignment="Center"
+                                          Checked="HideTrayIconCheckBox_Changed"
+                                          Unchecked="HideTrayIconCheckBox_Changed" />
+                            </controls:SettingsCard.Header>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
 
                 <TextBlock x:Uid="Settings_SectionDeviceLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 

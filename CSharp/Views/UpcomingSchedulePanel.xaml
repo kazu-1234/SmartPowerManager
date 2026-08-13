@@ -4,19 +4,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:SmartPowerManager.Models"
     HorizontalAlignment="Stretch"
-    VerticalAlignment="Center">
+    VerticalAlignment="Top">
     <Border x:Name="RootBorder"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="1"
-            CornerRadius="8"
-            Padding="12,10,18,10"
-            HorizontalAlignment="Stretch"
+            Style="{StaticResource ScheduleCardBorderStyle}"
             VerticalAlignment="Stretch">
         <Grid x:Name="ListRow" VerticalAlignment="Stretch">
             <TextBlock x:Name="EmptyStateText"
                        Text="予定はありません"
                        Style="{StaticResource BodyTextBlockStyle}"
+                       FontSize="14"
                        Opacity="0.7"
                        TextWrapping="Wrap"
                        HorizontalAlignment="Left"
@@ -42,31 +38,34 @@
                                 <!-- 種別バッジ幅を固定し、日時列の縦位置を揃える -->
                                 <Grid ColumnSpacing="14">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="96" />
                                         <ColumnDefinition Width="*" MinWidth="0" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <Border Background="{ThemeResource AccentFillColorDefaultBrush}"
                                             CornerRadius="4"
-                                            Padding="6,4"
-                                            MinWidth="84"
+                                            Padding="8,5"
+                                            MinWidth="88"
                                             HorizontalAlignment="Left"
                                             VerticalAlignment="Center">
                                         <TextBlock Text="{x:Bind CategoryLabel}"
+                                                   FontSize="14"
                                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center" />
                                     </Border>
                                     <StackPanel Grid.Column="1"
-                                                Spacing="1"
+                                                Spacing="2"
                                                 VerticalAlignment="Center"
                                                 MinWidth="0"
                                                 Margin="4,0,0,0">
                                         <TextBlock Text="{x:Bind Description}"
+                                                   FontSize="14"
                                                    FontWeight="SemiBold"
                                                    TextWrapping="NoWrap"
                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock Text="{x:Bind DateTimeText}"
+                                                   FontSize="13"
                                                    Opacity="0.75"
                                                    TextWrapping="NoWrap"
                                                    TextTrimming="CharacterEllipsis" />
