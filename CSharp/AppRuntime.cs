@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using WinRT.Interop;
+using WinUiShared;
 
 namespace SmartPowerManager
 {
@@ -29,26 +30,17 @@ namespace SmartPowerManager
         private MainWindow? _mainWindow;
         private TrayMessageWindow? _trayMessageWindow;
         private SystemEventWindow? _systemEventWindow;
+        private ResumeReapplyCoordinator? _resumeCoordinator;
         private CancellationTokenSource? _listenerCts;
-        private CancellationTokenSource? _startupHealthCts;
-        private Timer? _healthThreadingWatchdog;
-        private DateTime _intensiveHealthUntil = DateTime.MinValue;
         private bool _trayInitialized;
         private bool _executorInitialized;
         private bool _systemEventInitialized;
         private bool _isExitingProcess;
         private bool _startupUpdateCheckScheduled;
+        private bool _startupReadyNotified;
 #if DEBUG
         private Timer? _debuggerDetachTimer;
 #endif
-
-        private const int IntensiveHealthSeconds = 120;
-        private const int HealthWatchdogNormalIntervalMs = 30000;
-        private const int HealthWatchdogIntensiveIntervalMs = 2500;
-
-        /// <summary>開始時点からの絶対遅延（累積 Delay にしない）。BlueShift と同型。</summary>
-        private static readonly int[] HealthCheckDelaysMs =
-            { 800, 2000, 5000, 15000, 30000, 60000, 90000 };
 
         public AppRuntime(Application app, Settings settings)
         {
@@ -84,11 +76,9 @@ namespace SmartPowerManager
             ThemeService.Initialize(_settings.ThemePreference);
             StartListeners();
             EnsureExecutor();
+            EnsureResumeCoordinator();
             EnsureSystemEventMonitor();
-            // T+0 Force 相当（ログオン直後のタイマー未 Tick を即時救済）
-            _executor.EnsureHealthy(announce: false);
-            BeginIntensiveHealthPeriod();
-            ScheduleDelayedHealthChecks();
+            _resumeCoordinator?.BeginStartupPeriod();
 
             if (!ShouldUseTray())
             {
@@ -98,6 +88,7 @@ namespace SmartPowerManager
 #endif
                 if (requestInteractiveShow || !launchInBackground)
                     ShowOrCreateMainWindow();
+                ScheduleStartupReadyNotification();
                 return;
             }
 
@@ -105,6 +96,8 @@ namespace SmartPowerManager
 
             if (requestInteractiveShow || !launchInBackground)
                 ShowOrCreateMainWindow();
+
+            ScheduleStartupReadyNotification();
         }
 
         public void ShowOrCreateMainWindow(string? pageTag = null)
@@ -166,11 +159,8 @@ namespace SmartPowerManager
             _listenerCts?.Cancel();
             _listenerCts?.Dispose();
             _listenerCts = null;
-            _startupHealthCts?.Cancel();
-            _startupHealthCts?.Dispose();
-            _startupHealthCts = null;
-            _healthThreadingWatchdog?.Dispose();
-            _healthThreadingWatchdog = null;
+            _resumeCoordinator?.Dispose();
+            _resumeCoordinator = null;
 #if DEBUG
             _debuggerDetachTimer?.Dispose();
             _debuggerDetachTimer = null;
@@ -262,54 +252,7 @@ namespace SmartPowerManager
             });
         }
 
-        /// <summary>
-        /// ログオン直後・スリープ復帰時など、デスクトップ／タイマーが不安定なときに
-        /// BlueShift と同型で T+0.8/2/5/15/30/60/90 秒後にヘルスチェックする。
-        /// </summary>
-        private void ScheduleDelayedHealthChecks()
-        {
-            _startupHealthCts?.Cancel();
-            _startupHealthCts?.Dispose();
-            _startupHealthCts = new CancellationTokenSource();
-            var token = _startupHealthCts.Token;
-
-            Task.Run(async () =>
-            {
-                var start = DateTime.UtcNow;
-                foreach (int delayMs in HealthCheckDelaysMs)
-                {
-                    try
-                    {
-                        var wait = start.AddMilliseconds(delayMs) - DateTime.UtcNow;
-                        if (wait > TimeSpan.Zero)
-                            await Task.Delay(wait, token).ConfigureAwait(false);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        break;
-                    }
-
-                    if (token.IsCancellationRequested || _isExitingProcess)
-                        break;
-
-                    int capturedDelay = delayMs;
-                    if (!(GetDispatcherQueue()?.TryEnqueue(() =>
-                        {
-                            if (_isExitingProcess || !_executorInitialized)
-                                return;
-                            EnsureResidentLifetime();
-                            _executor.EnsureHealthy(announce: capturedDelay >= 90000);
-                        }) ?? false))
-                    {
-                        if (!_isExitingProcess && _executorInitialized)
-                            _executor.EvaluateScheduleNow();
-                    }
-                }
-            }, token);
-        }
-
-        /// <summary>スリープ復帰・画面復帰・セッション解除時に監視タイマーを再始動する。</summary>
-        private void OnSystemResume()
+        private void OnResumeApply()
         {
             if (_isExitingProcess || !_executorInitialized)
                 return;
@@ -318,113 +261,28 @@ namespace SmartPowerManager
             {
                 EnsureResidentLifetime();
                 _executor.EnsureHealthy(announce: false);
-                BeginIntensiveHealthPeriod();
-                ScheduleDelayedHealthChecks();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"OnSystemResume failed: {ex.Message}");
+                Debug.WriteLine($"OnResumeApply failed: {ex.Message}");
             }
         }
 
-        /// <summary>専用スレッドからの復帰通知。Dispatcher 不通時は評価のみ直接実行する。</summary>
-        private void OnSystemDisplayStateChanged()
-        {
-            if (!(GetDispatcherQueue()?.TryEnqueue(OnSystemResume) ?? false))
-                OnSystemResumeFallbackDirect();
-        }
-
-        private void OnSystemResumeFallbackDirect()
+        private void OnResumeApplyDirect()
         {
             if (_isExitingProcess || !_executorInitialized)
                 return;
 
-            // Dispatcher 不通時は評価のみ直接実行（DispatcherTimer は UI スレッド専用）
             _executor.EvaluateScheduleNow();
-            BeginIntensiveHealthPeriod();
-            ScheduleDelayedHealthChecks();
-
-            // Dispatcher 復帰後に EnsureHealthy（Stop→Start）を再試行
-            _ = Task.Run(async () =>
-            {
-                for (int i = 0; i < 10 && !_isExitingProcess; i++)
-                {
-                    try
-                    {
-                        await Task.Delay(500).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        return;
-                    }
-
-                    if (GetDispatcherQueue()?.TryEnqueue(() =>
-                        {
-                            if (_isExitingProcess || !_executorInitialized)
-                                return;
-                            EnsureResidentLifetime();
-                            _executor.EnsureHealthy(announce: false);
-                        }) == true)
-                    {
-                        return;
-                    }
-                }
-            });
         }
 
-        private void BeginIntensiveHealthPeriod()
+        private void OnResumeWatchdog()
         {
-            _intensiveHealthUntil = DateTime.UtcNow.AddSeconds(IntensiveHealthSeconds);
-            StartThreadingHealthWatchdog();
-        }
-
-        /// <summary>DispatcherTimer が止まっても EnsureHealthy できる Threading.Timer バックアップ（BlueShift 同型）。</summary>
-        private void StartThreadingHealthWatchdog()
-        {
-            int intervalMs = DateTime.UtcNow < _intensiveHealthUntil
-                ? HealthWatchdogIntensiveIntervalMs
-                : HealthWatchdogNormalIntervalMs;
-
-            if (_healthThreadingWatchdog == null)
-            {
-                _healthThreadingWatchdog = new Timer(
-                    _ =>
-                    {
-                        if (!(GetDispatcherQueue()?.TryEnqueue(() =>
-                            {
-                                if (_isExitingProcess || !_executorInitialized)
-                                    return;
-                                EnsureResidentLifetime();
-                                // 評価はしない（同一分の再発火防止）。タイマー生存のみ保証する。
-                                _executor.EnsureHealthy(announce: false, evaluateSchedule: false);
-                                SyncThreadingHealthWatchdogInterval();
-                            }) ?? false))
-                        {
-                            // タイマー再始動は UI 必須。評価だけフォールバック。
-                            if (!_isExitingProcess && _executorInitialized
-                                && DateTime.UtcNow < _intensiveHealthUntil)
-                                _executor.EvaluateScheduleNow();
-                        }
-                    },
-                    null,
-                    intervalMs,
-                    intervalMs);
-            }
-            else
-            {
-                _healthThreadingWatchdog.Change(intervalMs, intervalMs);
-            }
-        }
-
-        private void SyncThreadingHealthWatchdogInterval()
-        {
-            if (_healthThreadingWatchdog == null)
+            if (_isExitingProcess || !_executorInitialized)
                 return;
 
-            int intervalMs = DateTime.UtcNow < _intensiveHealthUntil
-                ? HealthWatchdogIntensiveIntervalMs
-                : HealthWatchdogNormalIntervalMs;
-            _healthThreadingWatchdog.Change(intervalMs, intervalMs);
+            EnsureResidentLifetime();
+            _executor.EnsureHealthy(announce: false, evaluateSchedule: false);
         }
 
         private static bool ShouldUseTray()
@@ -445,6 +303,20 @@ namespace SmartPowerManager
             _executor.Initialize();
         }
 
+        private void EnsureResumeCoordinator()
+        {
+            if (_resumeCoordinator != null)
+                return;
+
+            _resumeCoordinator = new ResumeReapplyCoordinator(
+                _uiDispatcher,
+                () => _isExitingProcess,
+                OnResumeApply,
+                OnResumeApplyDirect,
+                OnResumeWatchdog);
+            _resumeCoordinator.Start();
+        }
+
         private void EnsureSystemEventMonitor()
         {
             if (_systemEventInitialized)
@@ -459,8 +331,10 @@ namespace SmartPowerManager
 
             try
             {
-                _systemEventWindow = new SystemEventWindow();
-                _systemEventWindow.SystemDisplayStateChanged += OnSystemDisplayStateChanged;
+                EnsureResumeCoordinator();
+                _systemEventWindow = new SystemEventWindow("SmartPowerManagerSystemEventWindow_v2");
+                _systemEventWindow.SystemDisplayStateChanged += () => _resumeCoordinator?.NotifyResume();
+                _systemEventWindow.SystemSuspending += () => _resumeCoordinator?.NotifySuspend();
                 _systemEventInitialized = true;
             }
             catch (Exception ex)
@@ -497,6 +371,66 @@ namespace SmartPowerManager
         {
             EnsureSystemEventMonitor();
             EnsureTrayAlive(reAddIcon: true);
+        }
+
+        /// <summary>コア初期化後にトレイバルーンで常駐準備完了を知らせる（VS 外での動作確認用）。</summary>
+        private void ScheduleStartupReadyNotification()
+        {
+            if (_startupReadyNotified)
+                return;
+            _startupReadyNotified = true;
+
+            _ = Task.Run(async () =>
+            {
+                int[] delaysMs = { 1500, 2500, 5000 };
+                var start = DateTime.UtcNow;
+                foreach (int delayMs in delaysMs)
+                {
+                    try
+                    {
+                        var wait = start.AddMilliseconds(delayMs) - DateTime.UtcNow;
+                        if (wait > TimeSpan.Zero)
+                            await Task.Delay(wait).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+
+                    if (_isExitingProcess)
+                        return;
+
+                    var shown = new TaskCompletionSource<bool>();
+                    if (!(GetDispatcherQueue()?.TryEnqueue(() =>
+                        {
+                            try
+                            {
+                                if (_isExitingProcess || _settings.HideTrayIcon
+                                    || !_trayInitialized || _trayMessageWindow == null)
+                                {
+                                    shown.TrySetResult(false);
+                                    return;
+                                }
+
+                                _trayMessageWindow.TrayIcon.ShowBalloon(
+                                    Strings.Get("Tray_StartupReadyTitle"),
+                                    Strings.Get("Tray_StartupReadyBody"));
+                                shown.TrySetResult(true);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Startup ready balloon failed: {ex.Message}");
+                                shown.TrySetResult(false);
+                            }
+                        }) ?? false))
+                    {
+                        shown.TrySetResult(false);
+                    }
+
+                    if (await shown.Task.ConfigureAwait(false))
+                        return;
+                }
+            });
         }
 
         private void EnsureTray()

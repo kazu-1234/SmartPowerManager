@@ -20,6 +20,8 @@ namespace SmartPowerManager
     private const uint NIF_MESSAGE = 0x00000001;
     private const uint NIF_ICON = 0x00000002;
     private const uint NIF_TIP = 0x00000004;
+    private const uint NIF_INFO = 0x00000010;
+    private const uint NIIF_INFO = 0x00000001;
     private const uint MF_STRING = 0x00000000;
     private const uint MF_SEPARATOR = 0x00000800;
     private const uint TPM_RIGHTBUTTON = 0x0002;
@@ -66,6 +68,27 @@ namespace SmartPowerManager
       Shell_NotifyIcon(NIM_DELETE, ref data);
       _isVisible = false;
       AddIcon();
+    }
+
+    /// <summary>起動完了など、トレイ付近のバルーン通知。</summary>
+    public void ShowBalloon(string title, string message)
+    {
+      if (!_isVisible)
+        return;
+
+      var data = CreateNotifyData();
+      data.uFlags = NIF_INFO;
+      data.szInfoTitle = Truncate(title, 63);
+      data.szInfo = Truncate(message, 255);
+      data.dwInfoFlags = NIIF_INFO;
+      Shell_NotifyIcon(NIM_MODIFY, ref data);
+    }
+
+    private static string Truncate(string value, int maxChars)
+    {
+      if (string.IsNullOrEmpty(value) || value.Length <= maxChars)
+        return value ?? string.Empty;
+      return value[..maxChars];
     }
 
     private void AddIcon()
