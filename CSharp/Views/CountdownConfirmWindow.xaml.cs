@@ -110,6 +110,9 @@ public sealed partial class CountdownConfirmWindow : Window
         AppWindow.Move(new PointInt32(x, y));
     }
 
+    /// <summary>既存の確認ダイアログを前面に出す（二重表示防止用）。</summary>
+    public void FocusConfirmationWindow() => BringToForeground();
+
     private void BringToForeground()
     {
         if (_presenter != null)

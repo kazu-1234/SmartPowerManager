@@ -1,5 +1,6 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using SmartPowerManager;
 
 namespace SmartPowerManager.Services;
 
@@ -11,8 +12,9 @@ public sealed class ScheduleExecutorService : IDisposable
     private readonly Settings _settings;
     private readonly DispatcherTimer _timer;
     private readonly HashSet<string> _processedAutoWolKeys = new();
+    private readonly HashSet<string> _firedOccurrenceKeys = new();
     private bool _isHandlingPending;
-    private int _lastMinute = -1;
+    private DateTime _lastEvaluatedCalendarMinute = DateTime.MinValue;
 
     public event Action<string>? LogAdded;
     public event Action? SchedulesChanged;
@@ -64,7 +66,7 @@ public sealed class ScheduleExecutorService : IDisposable
     /// ログオン直後・スリープ復帰など、タイマー停止や状態ズレを検知して再始動する。
     /// BlueShift の ForceApply 相当として、即時に 1 回分のスケジュール評価も行う。
     /// </summary>
-    /// <param name="evaluateSchedule">true のとき分キーをリセットして即時評価する。Threading ウォッチドッグは false。</param>
+    /// <param name="evaluateSchedule">true のとき同一分を除き即時評価する。</param>
     public void EnsureHealthy(bool announce = false, bool evaluateSchedule = true)
     {
         bool wasRunning = _timer.IsEnabled;
@@ -87,7 +89,6 @@ public sealed class ScheduleExecutorService : IDisposable
     /// </summary>
     public void EvaluateScheduleNow()
     {
-        _lastMinute = -1;
         EvaluateCurrentMinute(DateTime.Now);
     }
 
@@ -148,11 +149,24 @@ public sealed class ScheduleExecutorService : IDisposable
         _isHandlingPending = true;
         try
         {
+            bool confirmed;
+            try
+            {
+                confirmed = await _confirmationDialog.ShowConfirmationAsync(pending.Action, pending.TriggerLabel);
+            }
+            catch (Exception ex)
+            {
+                LogAdded?.Invoke($"確認ダイアログの表示に失敗: {ex.Message}");
+                AppendScheduleLifetimeLog($"dialog failed: {pending.TriggerLabel} ({ex.Message})");
+                throw;
+            }
+
             _scheduleManager.ClearPendingAction();
-            bool confirmed = await _confirmationDialog.ShowConfirmationAsync(pending.Action, pending.TriggerLabel);
+
             if (!IsMonitoring(pending.Action))
             {
                 LogAdded?.Invoke("監視オフのため実行をキャンセルしました");
+                AppendScheduleLifetimeLog($"cancelled monitoring off: {pending.TriggerLabel}");
                 return;
             }
 
@@ -161,10 +175,12 @@ public sealed class ScheduleExecutorService : IDisposable
                 PowerStateHelper.ExecuteShutdownOrRestart(pending.Action);
                 string label = pending.Action == AppConstants.ActionShutdown ? "シャットダウン" : "再起動";
                 LogAdded?.Invoke($"{label}コマンドを送信しました");
+                AppendScheduleLifetimeLog($"confirmed execute: {pending.TriggerLabel}");
             }
             else
             {
                 LogAdded?.Invoke("ユーザーによりキャンセルされました");
+                AppendScheduleLifetimeLog($"user cancelled: {pending.TriggerLabel}");
             }
         }
         finally
@@ -176,18 +192,21 @@ public sealed class ScheduleExecutorService : IDisposable
     private void Timer_Tick(object? sender, object e)
     {
         CheckShowSignal();
-
-        var now = DateTime.Now;
-        if (now.Minute == _lastMinute)
-            return;
-
-        EvaluateCurrentMinute(now);
+        EvaluateCurrentMinute(DateTime.Now);
     }
 
     /// <summary>現在分のスケジュール評価（復帰時の即時 Force 相当）。</summary>
     private void EvaluateCurrentMinute(DateTime now)
     {
-        _lastMinute = now.Minute;
+        var calendarMinute = TruncateToMinute(now);
+        if (calendarMinute == _lastEvaluatedCalendarMinute)
+            return;
+
+        _lastEvaluatedCalendarMinute = calendarMinute;
+        _firedOccurrenceKeys.Clear();
+
+        AppendScheduleLifetimeLog($"evaluate minute: {calendarMinute:yyyy-MM-dd HH:mm}");
+        LogAdded?.Invoke($"スケジュール評価: {calendarMinute:yyyy-MM-dd HH:mm}");
 
         // 過ぎた予定の破棄は自動（監視オフ種別＋発火枠を過ぎた一回限りは常に削除・未実行）
         bool changed = DiscardElapsedForDisabledActions();
@@ -199,18 +218,29 @@ public sealed class ScheduleExecutorService : IDisposable
             CheckAutoWol(now);
             bool triggered = _scheduleManager.CheckAndExecute(
                 IsMonitoring,
+                _firedOccurrenceKeys,
                 msg => LogAdded?.Invoke(msg));
             if (triggered)
             {
                 changed = true;
                 if (_scheduleManager.PendingAction != null)
+                {
+                    AppendScheduleLifetimeLog(
+                        $"pending confirmation: {_scheduleManager.PendingAction.TriggerLabel}");
                     PendingConfirmationRequested?.Invoke();
+                }
             }
         }
 
         if (changed)
             SchedulesChanged?.Invoke();
     }
+
+    private static DateTime TruncateToMinute(DateTime dt) =>
+        new(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, 0);
+
+    private static void AppendScheduleLifetimeLog(string message) =>
+        AppRuntime.AppendLifetimeLog($"schedule {message}");
 
     private bool DiscardElapsedForDisabledActions()
     {

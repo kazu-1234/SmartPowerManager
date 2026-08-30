@@ -419,7 +419,10 @@ public sealed class ScheduleManager
         return changed;
     }
 
-    public bool CheckAndExecute(Func<string, bool> isMonitoring, Action<string>? logCallback = null)
+    public bool CheckAndExecute(
+        Func<string, bool> isMonitoring,
+        ISet<string>? firedOccurrenceKeys = null,
+        Action<string>? logCallback = null)
     {
         var now = DateTime.Now;
         int currentWeekday = ((int)now.DayOfWeek + 6) % 7;
@@ -438,9 +441,13 @@ public sealed class ScheduleManager
             if (elapsed < 0 || elapsed >= 60)
                 continue;
 
+            string occurrenceKey = BuildOccurrenceKey("onetime", s.Action, s.Datetime, s.Id);
+            if (IsOccurrenceAlreadyFired(firedOccurrenceKeys, occurrenceKey, logCallback))
+                continue;
+
             s.Executed = true;
             Save();
-            QueueAction(s.Action, $"一回限り ({s.Datetime})", logCallback);
+            QueueAction(s.Action, $"一回限り ({s.Datetime})", logCallback, occurrenceKey);
             return true;
         }
 
@@ -459,9 +466,14 @@ public sealed class ScheduleManager
                 return false;
             }
 
+            string occurrenceKey = BuildOccurrenceKey("weekly", s.Action, dtStr, s.Id);
+            if (IsOccurrenceAlreadyFired(firedOccurrenceKeys, occurrenceKey, logCallback))
+                continue;
+
             QueueAction(s.Action,
                 $"毎週 ({AppConstants.WeekdaysJp[s.Weekday]} {s.Hour:00}:{s.Minute:00})",
-                logCallback);
+                logCallback,
+                occurrenceKey);
             return true;
         }
 
@@ -480,13 +492,44 @@ public sealed class ScheduleManager
                 return false;
             }
 
+            string occurrenceKey = BuildOccurrenceKey("daily", pair.Key, dtStr);
+            if (IsOccurrenceAlreadyFired(firedOccurrenceKeys, occurrenceKey, logCallback))
+                continue;
+
             QueueAction(pair.Key,
                 $"毎日 ({pair.Value.Hour:00}:{pair.Value.Minute:00})",
-                logCallback);
+                logCallback,
+                occurrenceKey);
             return true;
         }
 
         return false;
+    }
+
+    internal static string BuildOccurrenceKey(string scheduleType, string action, string dateTimeKey, string? scheduleId = null)
+    {
+        return scheduleType switch
+        {
+            "onetime" => $"{action}:onetime:{dateTimeKey}",
+            "weekly" => $"{action}:weekly:{scheduleId}:{dateTimeKey}",
+            "daily" => $"{action}:daily:{dateTimeKey}",
+            _ => $"{action}:{scheduleType}:{dateTimeKey}"
+        };
+    }
+
+    private static bool IsOccurrenceAlreadyFired(
+        ISet<string>? firedOccurrenceKeys,
+        string occurrenceKey,
+        Action<string>? logCallback)
+    {
+        if (firedOccurrenceKeys == null)
+            return false;
+
+        if (firedOccurrenceKeys.Add(occurrenceKey))
+            return false;
+
+        logCallback?.Invoke($"同一回は既に発火済み: {occurrenceKey}");
+        return true;
     }
 
     public void ClearPendingAction() => PendingAction = null;
@@ -648,10 +691,12 @@ public sealed class ScheduleManager
         return null;
     }
 
-    private void QueueAction(string action, string triggerLabel, Action<string>? logCallback)
+    private void QueueAction(string action, string triggerLabel, Action<string>? logCallback, string? occurrenceKey = null)
     {
         string label = action == AppConstants.ActionShutdown ? "シャットダウン" : "再起動";
         logCallback?.Invoke($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {label}予定: {triggerLabel}");
+        if (!string.IsNullOrEmpty(occurrenceKey))
+            logCallback?.Invoke($"発火キー: {occurrenceKey}");
 
         PendingAction = new PendingActionRequest
         {

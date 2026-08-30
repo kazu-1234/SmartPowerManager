@@ -233,7 +233,6 @@ namespace SmartPowerManager
 
                     try
                     {
-                        ShowOrCreateMainWindowCore();
                         await _executor.HandlePendingActionAsync();
                         return;
                     }
@@ -282,7 +281,7 @@ namespace SmartPowerManager
                 return;
 
             EnsureResidentLifetime();
-            _executor.EnsureHealthy(announce: false, evaluateSchedule: false);
+            _executor.EnsureHealthy(announce: false, evaluateSchedule: true);
         }
 
         private static bool ShouldUseTray()

@@ -28,7 +28,9 @@ public sealed class ConfirmationDialogService
             {
                 if (_activeWindow != null)
                 {
-                    tcs.TrySetResult(false);
+                    _activeWindow.FocusConfirmationWindow();
+                    bool existingResult = await _activeWindow.Result;
+                    tcs.TrySetResult(existingResult);
                     return;
                 }
 
