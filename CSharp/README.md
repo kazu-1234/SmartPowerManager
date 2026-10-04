@@ -23,6 +23,7 @@ dotnet build SmartPowerManager.csproj -c Release -p:Platform=x64
 
 - `%AppData%\SmartPowerManager\schedules.json` — Python 版互換スケジュール
 - `%AppData%\SmartPowerManager\settings.json` — テーマ・自動起動設定
+- `%AppData%\SmartPowerManager\lifetime.log` — 終了理由・スケジュール確認／実行成否（1MB トリム）
 
 初回起動時、exe 横の旧 `schedules.json` を自動移行します。
 

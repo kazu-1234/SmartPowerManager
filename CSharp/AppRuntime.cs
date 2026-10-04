@@ -537,19 +537,8 @@ namespace SmartPowerManager
 
         private DispatcherQueue GetDispatcherQueue() => _uiDispatcher;
 
-        internal static void AppendLifetimeLog(string reason)
-        {
-            try
-            {
-                Directory.CreateDirectory(AppPaths.AppDataDirectory);
-                File.AppendAllText(
-                    Path.Combine(AppPaths.AppDataDirectory, "lifetime.log"),
-                    $"{DateTime.UtcNow:O} {reason}{Environment.NewLine}");
-            }
-            catch
-            {
-            }
-        }
+        internal static void AppendLifetimeLog(string reason) =>
+            LifetimeLog.Append("SmartPowerManager", reason);
 
         private static void BringWindowToForeground(Window window)
         {

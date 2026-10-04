@@ -259,3 +259,8 @@
 - [C#版] 復帰時も 800/2000/5000ms の遅延ヘルスチェックを実行（起動時と同型）
 - [C#版] EnsureHealthy で DispatcherTimer を Stop→Start してスリープ後の停止を回復
 - [C#版] バージョンを v2.0.35 に更新
+
+[v2.1.13] - 2026/10/04
+- [C#版] シャットダウン／再起動を shutdown.exe 子プロセスではなく InitiateSystemShutdownEx で実行（セキュリティソフト遮断対策）
+- [C#版] lifetime.log を WinUiShared 共通化し、毎分評価ログを廃止・1MB トリム
+- [C#版] バージョンを v2.1.13 に更新

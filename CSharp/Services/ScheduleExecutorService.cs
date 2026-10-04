@@ -172,10 +172,26 @@ public sealed class ScheduleExecutorService : IDisposable
 
             if (confirmed)
             {
-                PowerStateHelper.ExecuteShutdownOrRestart(pending.Action);
                 string label = pending.Action == AppConstants.ActionShutdown ? "シャットダウン" : "再起動";
-                LogAdded?.Invoke($"{label}コマンドを送信しました");
-                AppendScheduleLifetimeLog($"confirmed execute: {pending.TriggerLabel}");
+                try
+                {
+                    string? failure = PowerStateHelper.ExecuteShutdownOrRestart(pending.Action);
+                    if (failure == null)
+                    {
+                        LogAdded?.Invoke($"{label}コマンドを送信しました");
+                        AppendScheduleLifetimeLog($"confirmed execute: {pending.TriggerLabel}");
+                    }
+                    else
+                    {
+                        LogAdded?.Invoke($"{label}コマンド失敗: {failure}");
+                        AppendScheduleLifetimeLog($"execute failed: {pending.TriggerLabel} ({failure})");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogAdded?.Invoke($"{label}コマンド失敗: {ex.Message}");
+                    AppendScheduleLifetimeLog($"execute failed: {pending.TriggerLabel} ({ex.Message})");
+                }
             }
             else
             {
@@ -204,9 +220,6 @@ public sealed class ScheduleExecutorService : IDisposable
 
         _lastEvaluatedCalendarMinute = calendarMinute;
         _firedOccurrenceKeys.Clear();
-
-        AppendScheduleLifetimeLog($"evaluate minute: {calendarMinute:yyyy-MM-dd HH:mm}");
-        LogAdded?.Invoke($"スケジュール評価: {calendarMinute:yyyy-MM-dd HH:mm}");
 
         // 過ぎた予定の破棄は自動（監視オフ種別＋発火枠を過ぎた一回限りは常に削除・未実行）
         bool changed = DiscardElapsedForDisabledActions();
