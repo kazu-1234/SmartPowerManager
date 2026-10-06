@@ -2,6 +2,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Windows.Foundation;
 
 namespace SmartPowerManager.Views
 {
@@ -52,12 +53,15 @@ namespace SmartPowerManager.Views
             _contentRoot = root;
             root.SizeChanged += ContentRoot_SizeChanged;
             root.Loaded += ContentRoot_Loaded;
+            // SettingsExpander 展開後など、SizeChanged だけでは足りない更新を拾う
+            root.LayoutUpdated += ContentRoot_LayoutUpdated;
         }
 
         private void UnwatchContentRoot(FrameworkElement root)
         {
             root.SizeChanged -= ContentRoot_SizeChanged;
             root.Loaded -= ContentRoot_Loaded;
+            root.LayoutUpdated -= ContentRoot_LayoutUpdated;
 
             if (ReferenceEquals(_contentRoot, root))
                 _contentRoot = null;
@@ -69,6 +73,11 @@ namespace SmartPowerManager.Views
         }
 
         private void ContentRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            ScheduleUpdateScrollability();
+        }
+
+        private void ContentRoot_LayoutUpdated(object? sender, object e)
         {
             ScheduleUpdateScrollability();
         }
@@ -129,7 +138,27 @@ namespace SmartPowerManager.Views
             if (viewportHeight <= 0)
                 return false;
 
-            double contentHeight = _contentRoot?.ActualHeight ?? 0;
+            double contentHeight = 0;
+            if (_contentRoot != null)
+            {
+                // ScrollMode=Disabled だと子に viewport 高が渡り ActualHeight が潰れる。
+                // 無限高さで測り DesiredSize を使う。
+                double width = _scrollViewer.ViewportWidth;
+                if (width <= 0)
+                    width = _contentRoot.ActualWidth;
+                if (width <= 0)
+                    width = ActualWidth;
+
+                if (width > 0)
+                {
+                    _contentRoot.Measure(new Size(width, double.PositiveInfinity));
+                    contentHeight = _contentRoot.DesiredSize.Height;
+                }
+
+                if (contentHeight <= 0)
+                    contentHeight = _contentRoot.ActualHeight;
+            }
+
             if (contentHeight <= 0)
                 contentHeight = _scrollViewer.ExtentHeight;
 
