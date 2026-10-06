@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Net.NetworkInformation;
-using System.Text;
 
 namespace SmartPowerManager.Services;
 
@@ -12,104 +10,43 @@ public sealed class MacAddressInfo
 
 public static class MacAddressService
 {
+    /// <summary>ローカル NIC の MAC を AA:BB:CC:DD:EE:FF 形式で返す（重複除去・Up 優先）。</summary>
     public static IReadOnlyList<MacAddressInfo> GetMacAddresses()
     {
-        var list = new List<MacAddressInfo>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var up = new List<MacAddressInfo>();
+        var down = new List<MacAddressInfo>();
 
         try
         {
-            using var process = Process.Start(new ProcessStartInfo
+            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-                FileName = "getmac",
-                Arguments = "/v /fo csv",
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                StandardOutputEncoding = Encoding.GetEncoding(932)
-            });
-
-            if (process == null)
-                return Fallback();
-
-            string output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            bool headerSkipped = false;
-            foreach (string line in lines)
-            {
-                if (!headerSkipped)
-                {
-                    headerSkipped = true;
-                    continue;
-                }
-
-                var parts = ParseCsvLine(line);
-                if (parts.Count < 3)
+                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
                     continue;
 
-                string adapterName = parts[1].Trim();
-                string mac = parts[2].Trim().Replace('-', ':');
-                if (string.IsNullOrWhiteSpace(mac) || mac.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+                byte[] bytes = nic.GetPhysicalAddress().GetAddressBytes();
+                if (bytes.Length != 6)
+                    continue;
+                if (bytes.All(b => b == 0))
                     continue;
 
-                list.Add(new MacAddressInfo { Name = adapterName, Mac = mac });
+                string mac = string.Join(":", bytes.Select(b => b.ToString("X2")));
+                if (!seen.Add(mac))
+                    continue;
+
+                var info = new MacAddressInfo { Name = nic.Name, Mac = mac };
+                if (nic.OperationalStatus == OperationalStatus.Up)
+                    up.Add(info);
+                else
+                    down.Add(info);
             }
-        }
-        catch
-        {
-            return Fallback();
-        }
-
-        return list.Count > 0 ? list : Fallback();
-    }
-
-    private static IReadOnlyList<MacAddressInfo> Fallback()
-    {
-        try
-        {
-            var nic = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n =>
-                    n.OperationalStatus == OperationalStatus.Up &&
-                    n.NetworkInterfaceType != NetworkInterfaceType.Loopback);
-
-            if (nic == null)
-                return [];
-
-            string mac = string.Join(":", nic.GetPhysicalAddress().GetAddressBytes().Select(b => b.ToString("X2")));
-            return [new MacAddressInfo { Name = nic.Name, Mac = mac }];
         }
         catch
         {
             return [];
         }
-    }
 
-    private static List<string> ParseCsvLine(string line)
-    {
-        var result = new List<string>();
-        var current = new StringBuilder();
-        bool inQuotes = false;
-
-        foreach (char c in line)
-        {
-            if (c == '"')
-            {
-                inQuotes = !inQuotes;
-                continue;
-            }
-
-            if (c == ',' && !inQuotes)
-            {
-                result.Add(current.ToString());
-                current.Clear();
-                continue;
-            }
-
-            current.Append(c);
-        }
-
-        result.Add(current.ToString());
-        return result;
+        up.AddRange(down);
+        return up;
     }
 }

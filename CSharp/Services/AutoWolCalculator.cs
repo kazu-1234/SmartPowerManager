@@ -77,6 +77,36 @@ public static class AutoWolCalculator
         return (weekly.ToString(), onetime.ToString());
     }
 
+    /// <summary>
+    /// 表示用ルール（本処理時刻）。例: shutdown,daily,23,0;restart,weekly,2,1,0;
+    /// </summary>
+    public static string BuildAutoWolRulesString(ScheduleData data)
+    {
+        var sb = new StringBuilder();
+        foreach (string action in new[] { AppConstants.ActionShutdown, AppConstants.ActionRestart })
+            AppendAutoWolRulesForAction(data, action, sb);
+        return sb.ToString();
+    }
+
+    private static void AppendAutoWolRulesForAction(ScheduleData data, string action, StringBuilder sb)
+    {
+        if (data.Daily.TryGetValue(action, out var daily) && daily.Enabled)
+            sb.Append($"{action},daily,{daily.Hour},{daily.Minute};");
+
+        foreach (var s in data.WeeklySchedules.Where(s => s.Action == action))
+            sb.Append($"{action},weekly,{s.Weekday},{s.Hour},{s.Minute};");
+
+        foreach (var s in data.OnetimeSchedules.Where(s => s.Action == action && !s.Executed))
+        {
+            if (!DateTime.TryParseExact(s.Datetime, "yyyy-MM-dd HH:mm", null,
+                    System.Globalization.DateTimeStyles.None, out var dt))
+                continue;
+            if (dt.AddMinutes(-3) <= DateTime.Now)
+                continue;
+            sb.Append($"{action},onetime,{dt.Year},{dt.Month},{dt.Day},{dt.Hour},{dt.Minute};");
+        }
+    }
+
     private static void AddAutoWolForAction(ScheduleData data, string action, List<WolTrigger> triggers)
     {
         if (data.Daily.TryGetValue(action, out var daily) && daily.Enabled)

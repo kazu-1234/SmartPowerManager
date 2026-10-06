@@ -275,3 +275,9 @@
 - [C#版] GAS Webhook / 起動対象 PC 設定を削除し、Pico W IP + MAC のローカル同期のみに簡素化
 - [PicoW] 専用ファームを PicoW/ に新設（Web UI なし・固定 IP・EEPROM・NTP 時刻 WoL）
 - [C#版] バージョンを v2.1.16 に更新
+[v2.1.17] - 2026/10/07
+- [C#版] 設定の IP/MAC を各1行に整理（ブラウザで開く・再検出を左配置）
+- [C#版] MAC 一覧をローカル NIC の AA:BB:… 形式のみに変更
+- [C#版] auto_wol_rules を Pico へ送信（条件表示用）
+- [PicoW] スケジュール一覧 Web・EEPROM v2・rules/next
+- [C#版] バージョンを v2.1.17 に更新

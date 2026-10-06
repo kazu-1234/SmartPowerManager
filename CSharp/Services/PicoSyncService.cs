@@ -41,7 +41,8 @@ public static class PicoSyncService
             ["weekly"] = weeklyStr,
             ["onetime"] = onetimeStr,
             ["auto_wol_weekly"] = autoWol.Weekly,
-            ["auto_wol_onetime"] = autoWol.Onetime
+            ["auto_wol_onetime"] = autoWol.Onetime,
+            ["auto_wol_rules"] = AutoWolCalculator.BuildAutoWolRulesString(data)
         };
 
         using var content = new FormUrlEncodedContent(postData);

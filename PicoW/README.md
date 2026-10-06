@@ -1,6 +1,6 @@
 # SmartPowerManager Pico W 専用ファーム
 
-Web UI / LINE / 赤外線なし。SmartPowerManager（C#）から LAN 経由で MAC と起動スケジュールを受け取り、NTP 時刻に合わせて Wake-on-LAN します。
+SmartPowerManager（C#）から LAN 経由で MAC と起動スケジュールを受け取り、NTP 時刻に合わせて Wake-on-LAN します。ブラウザで IP を開くとスケジュール一覧を確認できます。
 
 ## セットアップ
 
@@ -12,17 +12,18 @@ Web UI / LINE / 赤外線なし。SmartPowerManager（C#）から LAN 経由で 
 
 `config.h` はリポジトリに含めない（`.gitignore`）。
 
-## API（アプリ互換）
+## API
 
 | メソッド | パス | 内容 |
 |----------|------|------|
-| POST | `/update_schedule` | `mac`, `d_en`/`d_h`/`d_m`, `weekly`, `onetime`, `auto_wol_weekly`, `auto_wol_onetime` |
-| GET | `/get_schedule` | 現在の起動スケジュール JSON |
+| GET | `/` `/schedule` | スケジュール一覧 HTML |
+| POST | `/update_schedule` | mac / 起動 / auto_wol_* / auto_wol_rules |
+| GET | `/get_schedule` | JSON（起動一覧 + 3分前条件と次時刻） |
 
 受信内容は EEPROM に保存され、再起動後も維持されます。
 
 ## アプリ側
 
-設定の **Pico W IP** を `config.h` の固定 IP に合わせ、**起動対象 MAC** を選択して同期します。GAS は使いません。
+設定の **Pico W IP** を `config.h` の固定 IP に合わせ、**起動対象 MAC** を選択して同期します。
 
 旧 `Python/SmartPowerManager_PicoW` は非推奨（本フォルダが正本）。

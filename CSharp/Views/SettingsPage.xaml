@@ -86,25 +86,25 @@
                     </controls:SettingsExpander.Resources>
                     <controls:SettingsExpander.Items>
                         <controls:SettingsCard Header="Pico W IP Address">
-                            <TextBox x:Name="PicoIpTextBox"
-                                     MinWidth="220"
-                                     PlaceholderText="192.168.10.x" />
-                        </controls:SettingsCard>
-
-                        <controls:SettingsCard>
-                            <Button Content="Pico W 設定画面をブラウザで開く"
-                                    Style="{StaticResource SecondaryActionButtonStyle}"
-                                    Click="OpenPicoWebButton_Click" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button Content="ブラウザで開く"
+                                        Style="{StaticResource SecondaryActionButtonStyle}"
+                                        Click="OpenPicoWebButton_Click" />
+                                <TextBox x:Name="PicoIpTextBox"
+                                         MinWidth="180"
+                                         PlaceholderText="192.168.10.x" />
+                            </StackPanel>
                         </controls:SettingsCard>
 
                         <controls:SettingsCard Header="起動対象 MAC アドレス">
-                            <ComboBox x:Name="MacComboBox" MinWidth="220" HorizontalAlignment="Stretch" />
-                        </controls:SettingsCard>
-
-                        <controls:SettingsCard>
-                            <Button Content="MAC アドレスを再検出"
-                                    Style="{StaticResource SecondaryActionButtonStyle}"
-                                    Click="RefreshMacButton_Click" />
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button Content="再検出"
+                                        Style="{StaticResource SecondaryActionButtonStyle}"
+                                        Click="RefreshMacButton_Click" />
+                                <ComboBox x:Name="MacComboBox"
+                                          MinWidth="180"
+                                          HorizontalAlignment="Stretch" />
+                            </StackPanel>
                         </controls:SettingsCard>
                     </controls:SettingsExpander.Items>
                 </controls:SettingsExpander>

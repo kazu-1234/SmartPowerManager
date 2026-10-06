@@ -62,18 +62,23 @@ public sealed partial class SettingsPage : Page
         var macs = MacAddressService.GetMacAddresses();
         MacComboBox.Items.Clear();
         foreach (var item in macs)
-            MacComboBox.Items.Add($"{item.Name} - {item.Mac}");
+            MacComboBox.Items.Add(item.Mac);
 
         if (!string.IsNullOrWhiteSpace(selectedMac))
         {
             for (int i = 0; i < MacComboBox.Items.Count; i++)
             {
-                if (MacComboBox.Items[i]?.ToString()?.Contains(selectedMac, StringComparison.OrdinalIgnoreCase) == true)
+                if (string.Equals(MacComboBox.Items[i]?.ToString(), selectedMac, StringComparison.OrdinalIgnoreCase))
                 {
                     MacComboBox.SelectedIndex = i;
                     return;
                 }
             }
+
+            // 保存済み MAC が検出一覧に無い場合も選べるように追加
+            MacComboBox.Items.Insert(0, selectedMac.ToUpperInvariant());
+            MacComboBox.SelectedIndex = 0;
+            return;
         }
 
         if (MacComboBox.Items.Count > 0)
@@ -199,10 +204,7 @@ public sealed partial class SettingsPage : Page
         pico.Ip = PicoIpTextBox.Text.Trim();
 
         if (MacComboBox.SelectedItem is string selected)
-        {
-            int idx = selected.LastIndexOf(" - ", StringComparison.Ordinal);
-            pico.TargetMac = idx >= 0 ? selected[(idx + 3)..] : selected;
-        }
+            pico.TargetMac = selected.Trim();
 
         _state.ScheduleManager.Save();
         _ = _state.SyncDevicesAsync(silent: true);
