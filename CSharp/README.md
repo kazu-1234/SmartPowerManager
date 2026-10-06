@@ -13,7 +13,7 @@ dotnet build SmartPowerManager.csproj -c Release -p:Platform=x64
 ## 主な機能
 
 - シャットダウン / 再起動スケジュール（毎日・毎週・一回限り・クイック）
-- Pico W / GAS 連携（WoL スケジュール同期、3分前自動 WoL）
+- Pico W 連携（LAN 経由で MAC / 起動スケジュール / 3分前 auto_wol を同期）
 - タスクトレイ常駐、多重起動防止
 - ログオンタスクによる自動起動（`--background`）
 - 3 テーマ（ライト / ダーク / システム連動）

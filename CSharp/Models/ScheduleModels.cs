@@ -103,12 +103,6 @@ public class PicoSettings
     [JsonProperty("target_mac")]
     public string TargetMac { get; set; } = string.Empty;
 
-    [JsonProperty("gas_url")]
-    public string GasUrl { get; set; } = string.Empty;
-
-    [JsonProperty("gas_target")]
-    public string GasTarget { get; set; } = AppConstants.GasTargetDesktop;
-
     [JsonProperty("startup_daily")]
     public StartupDailySetting StartupDaily { get; set; } = new();
 

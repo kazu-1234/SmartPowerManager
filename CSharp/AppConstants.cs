@@ -6,8 +6,6 @@ public static class AppConstants
     public const string ActionShutdown = "shutdown";
     public const string ActionRestart = "restart";
     public const string DefaultPicoIp = "192.168.10.x";
-    public const string GasTargetDesktop = "デスクトップPC";
-    public const string GasTargetServer = "サーバーPC";
 
     public static readonly string[] WeekdaysJp = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"];
     public static readonly string[] WeekdaysShort = ["月", "火", "水", "木", "金", "土", "日"];

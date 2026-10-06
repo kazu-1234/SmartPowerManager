@@ -1,0 +1,38 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+//================================================================
+// 設定テンプレート（このファイルを config.h にコピーして記入）
+// config.h は .gitignore 対象（秘密情報をリポジトリに出さない）
+//================================================================
+
+// --- デバッグ ---
+constexpr bool DEBUG = false;
+
+// --- WiFi（優先順・最大3） ---
+struct WiFiCredential
+{
+  const char *ssid;
+  const char *password;
+};
+
+const WiFiCredential wifiCredentials[] = {
+    {"YOUR_SSID_1", "YOUR_PASSWORD_1"},
+    {"YOUR_SSID_2", "YOUR_PASSWORD_2"},
+    {"YOUR_SSID_3", "YOUR_PASSWORD_3"}
+};
+const int numWifiCredentials = sizeof(wifiCredentials) / sizeof(wifiCredentials[0]);
+
+// --- NTP ---
+const char *NTP_SERVER = "ntp.nict.jp";
+const long NTP_GMT_OFFSET_SEC = 9 * 3600; // JST
+
+// --- 静的 IP（SPM アプリの Pico W IP と揃える） ---
+const bool USE_STATIC_IP = true;
+const byte STATIC_IP_BYTES[] = {192, 168, 10, 230};
+const byte GATEWAY_BYTES[] = {192, 168, 10, 1};
+const byte SUBNET_BYTES[] = {255, 255, 255, 0};
+const byte PRIMARY_DNS_BYTES[] = {8, 8, 8, 8};
+const byte SECONDARY_DNS_BYTES[] = {8, 8, 4, 4};
+
+#endif // CONFIG_H

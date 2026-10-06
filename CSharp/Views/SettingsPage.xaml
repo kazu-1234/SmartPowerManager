@@ -97,19 +97,6 @@
                                     Click="OpenPicoWebButton_Click" />
                         </controls:SettingsCard>
 
-                        <controls:SettingsCard Header="GAS Webhook URL">
-                            <TextBox x:Name="GasUrlTextBox"
-                                     MinWidth="220"
-                                     PlaceholderText="https://script.google.com/..." />
-                        </controls:SettingsCard>
-
-                        <controls:SettingsCard Header="GAS 起動対象 PC">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <RadioButton x:Name="GasDesktopRadio" Content="デスクトップPC" GroupName="GasTarget" />
-                                <RadioButton x:Name="GasServerRadio" Content="サーバーPC" GroupName="GasTarget" />
-                            </StackPanel>
-                        </controls:SettingsCard>
-
                         <controls:SettingsCard Header="起動対象 MAC アドレス">
                             <ComboBox x:Name="MacComboBox" MinWidth="220" HorizontalAlignment="Stretch" />
                         </controls:SettingsCard>

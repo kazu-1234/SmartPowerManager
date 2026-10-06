@@ -54,13 +54,6 @@ public sealed partial class SettingsPage : Page
 
         var pico = _state.ScheduleManager.Data.PicoSettings;
         PicoIpTextBox.Text = pico.Ip;
-        GasUrlTextBox.Text = pico.GasUrl;
-
-        if (pico.GasTarget == AppConstants.GasTargetServer)
-            GasServerRadio.IsChecked = true;
-        else
-            GasDesktopRadio.IsChecked = true;
-
         RefreshMacList(pico.TargetMac);
     }
 
@@ -204,10 +197,6 @@ public sealed partial class SettingsPage : Page
 
         var pico = _state.ScheduleManager.Data.PicoSettings;
         pico.Ip = PicoIpTextBox.Text.Trim();
-        pico.GasUrl = GasUrlTextBox.Text.Trim();
-        pico.GasTarget = GasServerRadio.IsChecked == true
-            ? AppConstants.GasTargetServer
-            : AppConstants.GasTargetDesktop;
 
         if (MacComboBox.SelectedItem is string selected)
         {
