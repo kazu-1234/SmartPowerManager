@@ -18,6 +18,7 @@ public sealed partial class SettingsPage : Page
         CompactComboBoxHelper.AttachFitToSelectedText(ThemeComboBox);
         ToggleSwitchClickHelper.ProtectFromParentCapture(AutoStartToggle);
         AutostartExpandHelper.AttachSkipInitialAnimation(AutoStartExpander);
+        AutostartExpandHelper.AttachSkipInitialAnimation(DeviceExpander);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)

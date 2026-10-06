@@ -264,3 +264,7 @@
 - [C#版] シャットダウン／再起動を shutdown.exe 子プロセスではなく InitiateSystemShutdownEx で実行（セキュリティソフト遮断対策）
 - [C#版] lifetime.log を WinUiShared 共通化し、毎分評価ログを廃止・1MB トリム
 - [C#版] バージョンを v2.1.13 に更新
+
+[v2.1.14] - 2026/10/06
+- [C#版] 設定のデバイス連携を SettingsExpander に分割し、見切れ時にスクロールできない問題を修正
+- [C#版] バージョンを v2.1.14 に更新

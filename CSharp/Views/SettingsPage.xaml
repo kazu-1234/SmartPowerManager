@@ -77,22 +77,50 @@
 
                 <TextBlock x:Uid="Settings_SectionDeviceLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-                <controls:SettingsCard>
-                    <controls:SettingsCard.Description>
-                        <StackPanel Spacing="12">
-                            <TextBox x:Name="PicoIpTextBox" Header="Pico W IP Address" PlaceholderText="192.168.10.x" />
-                            <Button Content="Pico W 設定画面をブラウザで開く" Style="{StaticResource SecondaryActionButtonStyle}" Click="OpenPicoWebButton_Click" />
-                            <TextBox x:Name="GasUrlTextBox" Header="GAS Webhook URL" PlaceholderText="https://script.google.com/..." />
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="GAS 起動対象 PC" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                <controls:SettingsExpander x:Name="DeviceExpander"
+                                           Header="デバイス連携"
+                                           IsExpanded="True">
+                    <controls:SettingsExpander.Resources>
+                        <Thickness x:Key="SettingsExpanderItemPadding">16,8,16,8</Thickness>
+                        <Thickness x:Key="ClickableSettingsExpanderItemPadding">16,8,16,8</Thickness>
+                    </controls:SettingsExpander.Resources>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard Header="Pico W IP Address">
+                            <TextBox x:Name="PicoIpTextBox"
+                                     MinWidth="220"
+                                     PlaceholderText="192.168.10.x" />
+                        </controls:SettingsCard>
+
+                        <controls:SettingsCard>
+                            <Button Content="Pico W 設定画面をブラウザで開く"
+                                    Style="{StaticResource SecondaryActionButtonStyle}"
+                                    Click="OpenPicoWebButton_Click" />
+                        </controls:SettingsCard>
+
+                        <controls:SettingsCard Header="GAS Webhook URL">
+                            <TextBox x:Name="GasUrlTextBox"
+                                     MinWidth="220"
+                                     PlaceholderText="https://script.google.com/..." />
+                        </controls:SettingsCard>
+
+                        <controls:SettingsCard Header="GAS 起動対象 PC">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
                                 <RadioButton x:Name="GasDesktopRadio" Content="デスクトップPC" GroupName="GasTarget" />
                                 <RadioButton x:Name="GasServerRadio" Content="サーバーPC" GroupName="GasTarget" />
                             </StackPanel>
-                            <ComboBox x:Name="MacComboBox" Header="起動対象 MAC アドレス" HorizontalAlignment="Stretch" />
-                            <Button Content="MAC アドレスを再検出" Style="{StaticResource SecondaryActionButtonStyle}" Click="RefreshMacButton_Click" />
-                        </StackPanel>
-                    </controls:SettingsCard.Description>
-                </controls:SettingsCard>
+                        </controls:SettingsCard>
+
+                        <controls:SettingsCard Header="起動対象 MAC アドレス">
+                            <ComboBox x:Name="MacComboBox" MinWidth="220" HorizontalAlignment="Stretch" />
+                        </controls:SettingsCard>
+
+                        <controls:SettingsCard>
+                            <Button Content="MAC アドレスを再検出"
+                                    Style="{StaticResource SecondaryActionButtonStyle}"
+                                    Click="RefreshMacButton_Click" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
             </StackPanel>
         </Grid>
     </views:PageScrollHost>
