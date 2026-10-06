@@ -92,6 +92,8 @@
                                         Click="OpenPicoWebButton_Click" />
                                 <TextBox x:Name="PicoIpTextBox"
                                          MinWidth="180"
+                                         VerticalAlignment="Center"
+                                         VerticalContentAlignment="Center"
                                          PlaceholderText="192.168.10.x" />
                             </StackPanel>
                         </controls:SettingsCard>

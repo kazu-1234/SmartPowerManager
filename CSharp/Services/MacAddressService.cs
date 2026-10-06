@@ -10,7 +10,13 @@ public sealed class MacAddressInfo
 
 public static class MacAddressService
 {
-    /// <summary>ローカル NIC の MAC を AA:BB:CC:DD:EE:FF 形式で返す（重複除去・Up 優先）。</summary>
+    private static readonly string[] VpnKeywords =
+    [
+        "VPN", "TAP", "Wintun", "WireGuard", "OpenVPN", "Nord",
+        "Hyper-V", "vEthernet", "VirtualBox", "VMware", "Tailscale"
+    ];
+
+    /// <summary>ローカル NIC の MAC を返す（VPN/Tunnel 除外・重複除去・Up 優先）。</summary>
     public static IReadOnlyList<MacAddressInfo> GetMacAddresses()
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -21,7 +27,7 @@ public static class MacAddressService
         {
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                if (ShouldSkip(nic))
                     continue;
 
                 byte[] bytes = nic.GetPhysicalAddress().GetAddressBytes();
@@ -34,7 +40,13 @@ public static class MacAddressService
                 if (!seen.Add(mac))
                     continue;
 
-                var info = new MacAddressInfo { Name = nic.Name, Mac = mac };
+                string name = nic.Name;
+                if (string.IsNullOrWhiteSpace(name))
+                    name = nic.Description;
+                if (string.IsNullOrWhiteSpace(name))
+                    name = "NIC";
+
+                var info = new MacAddressInfo { Name = name, Mac = mac };
                 if (nic.OperationalStatus == OperationalStatus.Up)
                     up.Add(info);
                 else
@@ -48,5 +60,22 @@ public static class MacAddressService
 
         up.AddRange(down);
         return up;
+    }
+
+    private static bool ShouldSkip(NetworkInterface nic)
+    {
+        if (nic.NetworkInterfaceType is NetworkInterfaceType.Loopback
+            or NetworkInterfaceType.Ppp
+            or NetworkInterfaceType.Tunnel)
+            return true;
+
+        string haystack = $"{nic.Name} {nic.Description}";
+        foreach (string kw in VpnKeywords)
+        {
+            if (haystack.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }

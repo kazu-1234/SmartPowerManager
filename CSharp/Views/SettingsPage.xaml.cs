@@ -62,13 +62,14 @@ public sealed partial class SettingsPage : Page
         var macs = MacAddressService.GetMacAddresses();
         MacComboBox.Items.Clear();
         foreach (var item in macs)
-            MacComboBox.Items.Add(item.Mac);
+            MacComboBox.Items.Add($"{item.Name} - {item.Mac}");
 
         if (!string.IsNullOrWhiteSpace(selectedMac))
         {
             for (int i = 0; i < MacComboBox.Items.Count; i++)
             {
-                if (string.Equals(MacComboBox.Items[i]?.ToString(), selectedMac, StringComparison.OrdinalIgnoreCase))
+                string? text = MacComboBox.Items[i]?.ToString();
+                if (text != null && text.EndsWith(selectedMac, StringComparison.OrdinalIgnoreCase))
                 {
                     MacComboBox.SelectedIndex = i;
                     return;
@@ -204,7 +205,10 @@ public sealed partial class SettingsPage : Page
         pico.Ip = PicoIpTextBox.Text.Trim();
 
         if (MacComboBox.SelectedItem is string selected)
-            pico.TargetMac = selected.Trim();
+        {
+            int idx = selected.LastIndexOf(" - ", StringComparison.Ordinal);
+            pico.TargetMac = idx >= 0 ? selected[(idx + 3)..].Trim() : selected.Trim();
+        }
 
         _state.ScheduleManager.Save();
         _ = _state.SyncDevicesAsync(silent: true);

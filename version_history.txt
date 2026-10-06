@@ -281,3 +281,7 @@
 - [C#版] auto_wol_rules を Pico へ送信（条件表示用）
 - [PicoW] スケジュール一覧 Web・EEPROM v2・rules/next
 - [C#版] バージョンを v2.1.17 に更新
+[v2.1.18] - 2026/10/07
+- [C#版] MAC 一覧にアダプター名を付与し、VPN/Tunnel 系 NIC を除外
+- [C#版] Pico IP TextBox の文字を縦中央揃え
+- [C#版] バージョンを v2.1.18 に更新
