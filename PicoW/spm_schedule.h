@@ -16,7 +16,7 @@ const int SPM_MAX_AUTO_WOL_ONETIME = 21;
 const int SPM_RULES_MAX = 384;
 const uint32_t SPM_EEPROM_MAGIC = 0x31504D53UL; // 'SPM1'
 const uint8_t SPM_EEPROM_VERSION = 2;
-const size_t SPM_EEPROM_SIZE = 2048;
+const size_t SPM_EEPROM_SIZE = 4096;
 
 struct SpmScheduleDaily
 {
