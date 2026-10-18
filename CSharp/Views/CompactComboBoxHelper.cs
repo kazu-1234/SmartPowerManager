@@ -1,22 +1,24 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Windows.Foundation;
 
 namespace SmartPowerManager.Views;
 
 /// <summary>
 /// WinUI ComboBox 既定テンプレートでは内容列が * のため、文字と矢印のあいだに余白が開く。
 /// 内容列を Auto にし、矢印列幅・Margin を詰めて文字の直後に矢印が来るようにする。
-/// テーマ ComboBox など可変幅の場合は、選択中テキスト幅に合わせて Width を設定する。
+/// テーマ ComboBox など可変幅の場合は、Width を固定せず選択中テキストの自然な幅にする。
 /// </summary>
 internal static class CompactComboBoxHelper
 {
     private const double GlyphColumnWidth = 20;
-    private const double BorderThicknessTotal = 2;
     private static readonly Thickness GlyphMargin = new(0, 0, 6, 0);
     private static readonly HashSet<ComboBox> FitToTextBoxes = [];
     private static readonly HashSet<ComboBox> Applying = [];
+
+    // 閉じているときの実幅。ドロップダウンを開くと選択文字がポップアップ側へ移って
+    // 自動幅の ComboBox が縮み、ポップアップ位置がずれるため、開いている間だけこの幅で固定する。
+    private static readonly Dictionary<ComboBox, double> ClosedWidths = [];
 
     public static void Attach(params ComboBox[] boxes)
     {
@@ -40,6 +42,8 @@ internal static class CompactComboBoxHelper
         box.SizeChanged += OnFitSizeChanged;
         box.SelectionChanged += OnFitSelectionChanged;
         box.ActualThemeChanged += OnFitActualThemeChanged;
+        box.DropDownOpened += OnFitDropDownOpened;
+        box.DropDownClosed += OnFitDropDownClosed;
         if (box.IsLoaded)
             FitWidthToSelectedText(box);
     }
@@ -71,7 +75,25 @@ internal static class CompactComboBoxHelper
     private static void OnFitSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (sender is ComboBox box)
+        {
+            // 開いている間の縮んだ幅は記録しない（閉じた状態の幅だけを固定用に覚える）
+            if (!box.IsDropDownOpen)
+                ClosedWidths[box] = e.NewSize.Width;
             Apply(box);
+        }
+    }
+
+    private static void OnFitDropDownOpened(object? sender, object e)
+    {
+        if (sender is ComboBox box && ClosedWidths.TryGetValue(box, out double width) && width > 0)
+            box.Width = width;
+    }
+
+    private static void OnFitDropDownClosed(object? sender, object e)
+    {
+        // 閉じたら固定を解除し、新しい選択文字の自然な幅に戻す
+        if (sender is ComboBox box)
+            FitWidthToSelectedText(box);
     }
 
     private static void OnFitSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -83,44 +105,29 @@ internal static class CompactComboBoxHelper
     private static void OnFitActualThemeChanged(FrameworkElement sender, object args)
     {
         if (sender is ComboBox box)
+        {
+            // テーマ切替でテンプレートの値が再評価されるので、列幅・余白を当て直して再計測させる
             Apply(box);
+            box.InvalidateMeasure();
+        }
     }
 
     private static void FitWidthToSelectedText(ComboBox box)
     {
-        string? text = box.SelectedItem?.ToString();
-        if (string.IsNullOrEmpty(text))
+        // 開いている間は幅固定中。選択変更はここで処理せず、DropDownClosed で合わせ直す
+        if (box.IsDropDownOpen)
             return;
 
-        var measureBlock = new TextBlock
-        {
-            Text = text,
-            FontSize = box.FontSize,
-            FontFamily = box.FontFamily,
-            FontWeight = box.FontWeight,
-            FontStyle = box.FontStyle,
-            FontStretch = box.FontStretch
-        };
-        measureBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-
-        double sidePadding = box.Padding.Left;
-        double contentWidth = measureBlock.DesiredSize.Width;
-        // 文字の左右余白は同じ（Padding.Left = ContentPresenter 右 Margin）。
-        double width = contentWidth
-            + sidePadding
-            + sidePadding
-            + GlyphColumnWidth
-            + GlyphMargin.Right
-            + BorderThicknessTotal;
-
-        double newWidth = Math.Ceiling(width);
-        if (double.IsNaN(box.Width) || Math.Abs(box.Width - newWidth) > 0.5)
-            box.Width = newWidth;
-
+        // 幅は固定しない（Width を解除 = 自動）。Apply で内容列を Auto にしているため、
+        // ComboBox は「選択中テキスト + 左右余白 + 矢印列」の自然な幅になる。
+        // 以前はツリー外の TextBlock で文字幅を測って Width を固定していたが、
+        // テーマ切替後の実寸とずれて「システムに従う」が見切れることがあった。
+        box.ClearValue(FrameworkElement.WidthProperty);
         box.MinWidth = 0;
         box.ClearValue(FrameworkElement.MaxWidthProperty);
 
         Apply(box);
+        box.InvalidateMeasure();
     }
 
     private static void Apply(ComboBox box)
