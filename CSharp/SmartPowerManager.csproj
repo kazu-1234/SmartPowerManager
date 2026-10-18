@@ -17,7 +17,7 @@
     <ApplicationDefaultLanguage>ja-JP</ApplicationDefaultLanguage>
     <Version>2.2.0</Version>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <!-- 配币E�E��E�単一 exe�E�E�E�Eotnet publish 時）に忁E�E��E�な WinUI unpackaged 設宁E-->
+    <!-- 配布（単一 exe・dotnet publish 時）に必要な WinUI unpackaged 設定 -->
     <SelfContained Condition="'$(PublishSingleFile)' == 'true'">true</SelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
     <IncludeAllContentForSelfExtract Condition="'$(PublishSingleFile)' == 'true'">true</IncludeAllContentForSelfExtract>
@@ -30,7 +30,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <!-- Debug ビルド前に常駐�Eロセスを終亁E�E��E�、exe ロチE�E��E�によるビルド失敗を防ぁE-->
+  <!-- Debug ビルド前に常駐プロセスを終了し、exe ロックによるビルド失敗を防ぐ -->
   <Target Name="StopRunningInstanceBeforeBuild" BeforeTargets="PrepareForBuild" Condition="'$(Configuration)' == 'Debug'">
     <Exec Command="taskkill /F /IM $(AssemblyName).exe /T 2&gt;nul" IgnoreExitCode="true" />
   </Target>
