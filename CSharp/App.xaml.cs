@@ -1,9 +1,9 @@
-﻿// v2.1.19
+﻿// v2.2.0
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
 using System;
-using System.Diagnostics;
+using WinUiShared;
 
 namespace SmartPowerManager
 {
@@ -23,40 +23,21 @@ namespace SmartPowerManager
             UnhandledException += App_UnhandledException;
         }
 
-        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
-        {
-            Debug.WriteLine(e.Exception);
-            AppRuntime.AppendLifetimeLog($"unhandled {e.Exception?.GetType().Name}: {e.Exception?.Message}");
-            e.Handled = true;
-        }
+        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e) =>
+            AppBootstrap.HandleUnhandledException(e);
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            UpdateChecker.LatestReleaseApiUrl = AppConstants.GitHubApiUrl;
-
             ConfigMigrationService.MigrateIfNeeded();
             ConfigMigrationService.RunStartupCleanup();
 
-            if (HasCommandLineArg("--cleanup-autostart"))
-            {
-                StartupManager.CleanupAutostartOnly();
-                Exit();
-                return;
-            }
-
-            if (HasCommandLineArg("--sync-autostart"))
-            {
-                var syncSettings = Settings.Load();
-                StartupManager.SyncAutostartWithSettings(syncSettings.AutoStart, syncSettings.UseLogonTask);
-                Exit();
-                return;
-            }
+            // --cleanup-autostart / --sync-autostart は Program.Main（WinUI 起動前）で処理済み
 
             var settings = Settings.Load();
-            bool launchInBackground = HasCommandLineArg("--background");
+            bool launchInBackground = AppBootstrap.HasCommandLineArg(AppBootstrap.BackgroundArg);
             bool requestInteractiveShow = !launchInBackground;
 
-            if (!SingleInstanceManager.TryBecomePrimaryInstance(requestInteractiveShow))
+            if (!SingleInstance.TryBecomePrimaryInstance(requestInteractiveShow))
             {
                 Exit();
                 return;
@@ -77,17 +58,6 @@ namespace SmartPowerManager
 
             _runtime = new AppRuntime(this, settings);
             _runtime.Start(launchInBackground, requestInteractiveShow);
-        }
-
-        private static bool HasCommandLineArg(string arg)
-        {
-            foreach (string item in Environment.GetCommandLineArgs())
-            {
-                if (string.Equals(item, arg, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-
-            return false;
         }
     }
 }

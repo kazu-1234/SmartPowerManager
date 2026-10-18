@@ -25,7 +25,7 @@ public sealed partial class InfoPage : Page
         _state = e.Parameter as AppState;
         _isInitializing = true;
 
-        VersionText.Text = Strings.Format("Version_Format", UpdateChecker.CurrentVersion);
+        VersionText.Text = Strings.Format("Version_Format", AppUpdate.CurrentVersion);
         RefreshLastUpdateCheckText();
         AutoUpdateToggle.IsOn = _state?.Settings.AutoCheckUpdateOnStartup ?? true;
 
@@ -34,7 +34,7 @@ public sealed partial class InfoPage : Page
 
     private void RefreshLastUpdateCheckText()
     {
-        LastUpdateCheckText.Text = UpdateFlowService.FormatLastUpdateCheckDisplay(
+        LastUpdateCheckText.Text = AppUpdate.FormatLastUpdateCheckDisplay(
             _state?.Settings.LastUpdateCheckUtc);
     }
 
@@ -48,7 +48,7 @@ public sealed partial class InfoPage : Page
         InstallUpdateCard.Visibility = Visibility.Collapsed;
         _lastResult = null;
 
-        UpdateCheckResult result = await UpdateFlowService.CheckAndRecordAsync(_state.Settings);
+        UpdateCheckResult result = await AppUpdate.CheckAndRecordAsync(_state.Settings);
         _lastResult = result;
         RefreshLastUpdateCheckText();
 
@@ -101,7 +101,7 @@ public sealed partial class InfoPage : Page
         try
         {
             var progress = new Progress<string>(msg => InstallStatusText.Text = msg);
-            string message = await UpdateInstallerService.DownloadAndInstallAsync(
+            string message = await AppUpdate.DownloadAndInstallAsync(
                 _lastResult.DownloadUrl,
                 _lastResult.AssetFileName,
                 progress);

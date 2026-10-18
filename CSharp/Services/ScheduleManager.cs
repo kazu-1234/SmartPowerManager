@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using WinUiShared;
 using SmartPowerManager.Models;
 
 namespace SmartPowerManager.Services;
@@ -60,7 +61,9 @@ public sealed class ScheduleManager
                     Directory.CreateDirectory(dir);
 
                 string json = JsonConvert.SerializeObject(Data, Formatting.Indented);
-                File.WriteAllText(_configPath, json);
+                // 一時ファイル → 差し替えで書く。シャットダウン／再起動の直前に保存が途中で止まっても
+                // schedules.json が空や途中までの壊れたファイルにならない（読み込み失敗で予定が消えて見えるのを防ぐ）
+                JsonSettingsFile.WriteAllTextAtomic(_configPath, json);
             }
             catch
             {

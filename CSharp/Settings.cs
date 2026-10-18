@@ -5,7 +5,7 @@ using WinUiShared;
 
 namespace SmartPowerManager
 {
-    public class Settings : IUpdateSettings
+    public class Settings : IAppHostSettings
     {
         /// <summary>デフォルトはシステム連動。</summary>
         public AppThemePreference ThemePreference { get; set; } = AppThemePreference.System;
@@ -64,38 +64,11 @@ namespace SmartPowerManager
         private static string SettingsFilePath =>
             Path.Combine(AppPaths.AppDataDirectory, "settings.json");
 
-        public static Settings Load()
-        {
-            try
-            {
-                if (File.Exists(SettingsFilePath))
-                {
-                    string json = File.ReadAllText(SettingsFilePath);
-                    var settings = JsonConvert.DeserializeObject<Settings>(json);
-                    if (settings != null)
-                        return settings;
-                }
-            }
-            catch
-            {
-            }
+        /// <summary>読み込み。無い・壊れているときは既定値（壊れていれば 1 つ前の保存版 .bak で救済）。</summary>
+        public static Settings Load() =>
+            JsonSettingsFile.Load<Settings>(SettingsFilePath) ?? new Settings();
 
-            return new Settings();
-        }
-
-        public void Save()
-        {
-            try
-            {
-                if (!Directory.Exists(AppPaths.AppDataDirectory))
-                    Directory.CreateDirectory(AppPaths.AppDataDirectory);
-
-                string json = JsonConvert.SerializeObject(this, Formatting.Indented);
-                File.WriteAllText(SettingsFilePath, json);
-            }
-            catch
-            {
-            }
-        }
+        /// <summary>保存（一時ファイル → 差し替えで、シャットダウン実行中に止まっても壊れない）。失敗は無視する。</summary>
+        public void Save() => JsonSettingsFile.Save(SettingsFilePath, this);
     }
 }

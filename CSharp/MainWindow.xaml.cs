@@ -13,7 +13,7 @@ using WinUiShared;
 
 namespace SmartPowerManager;
 
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow : Window, IAppMainWindow
 {
     private const int DefaultClientWidth = 960;
     private const int DefaultClientHeight = 680;
@@ -62,7 +62,7 @@ public sealed partial class MainWindow : Window
 
     public void NavigateToPageTag(string tag) => NavigateToPage(tag, force: false, suppressTransition: true);
 
-    internal void SaveWindowBoundsFromRuntime()
+    public void SaveWindowBoundsFromRuntime()
     {
         SaveWindowBounds();
     }
@@ -124,27 +124,10 @@ public sealed partial class MainWindow : Window
         SaveWindowBounds();
         _runtime.OnMainWindowClosing(this);
 
-#if DEBUG
-        if (Debugger.IsAttached)
-        {
-            args.Cancel = false;
-            Closed += MainWindow_ClosedDebugExit;
-            AppWindow.Closing -= AppWindow_Closing;
-            AppWindow.Changed -= AppWindow_Changed;
-            return;
-        }
-#endif
-
+        // × は本当に Close する（Hide しない）。閉じた後（常駐継続 / デバッグ実行中の終了）は AppRuntimeBase が決める
         args.Cancel = false;
         AppWindow.Closing -= AppWindow_Closing;
         AppWindow.Changed -= AppWindow_Changed;
-    }
-
-    private void MainWindow_ClosedDebugExit(object sender, WindowEventArgs e)
-    {
-        Closed -= MainWindow_ClosedDebugExit;
-        if (!_runtime.IsExitingProcess)
-            _runtime.ExitApplication("debug-window-close");
     }
 
     private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs e)

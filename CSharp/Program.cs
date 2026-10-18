@@ -1,8 +1,5 @@
-﻿using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
-using SmartPowerManager.Services;
-using System;
-using System.Threading;
+﻿using System;
+using WinUiShared;
 
 namespace SmartPowerManager
 {
@@ -16,42 +13,26 @@ namespace SmartPowerManager
                 "MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY",
                 AppContext.BaseDirectory);
 
-            if (HasArg(args, "--exit"))
-            {
-                SingleInstanceManager.SignalExit();
-                Thread.Sleep(1500);
-                return;
-            }
+            // --exit（インストーラからの終了依頼）と WinUI の起動は共通処理（WinUiShared.AppBootstrap）
+            AppBootstrap.RunMain(args, AppSetup.Profile, HandlePreLaunchArgs, () => new App());
+        }
 
-            if (HasArg(args, "--cleanup-autostart"))
+        /// <summary>WinUI を起動せずに済む引数を処理する。処理したら true（そのまま終了）。</summary>
+        private static bool HandlePreLaunchArgs(string[] args)
+        {
+            // アンインストール時の掃除: 自動起動の登録だけ削除して終了
+            if (AppBootstrap.HasArg(args, AppBootstrap.CleanupAutostartArg))
             {
                 StartupManager.CleanupAutostartOnly();
-                return;
+                return true;
             }
 
-            if (HasArg(args, "--sync-autostart"))
+            // インストール直後など: 設定に合わせてログオンタスク（またはスタートアップ）を現行 exe へ同期して終了
+            if (AppBootstrap.HasArg(args, AppBootstrap.SyncAutostartArg))
             {
                 var settings = Settings.Load();
                 StartupManager.SyncAutostartWithSettings(settings.AutoStart, settings.UseLogonTask);
-                return;
-            }
-
-            WinRT.ComWrappersSupport.InitializeComWrappers();
-            Application.Start(_ =>
-            {
-                var context = new DispatcherQueueSynchronizationContext(
-                    DispatcherQueue.GetForCurrentThread());
-                SynchronizationContext.SetSynchronizationContext(context);
-                new App();
-            });
-        }
-
-        private static bool HasArg(string[] args, string arg)
-        {
-            foreach (string item in args)
-            {
-                if (string.Equals(item, arg, StringComparison.OrdinalIgnoreCase))
-                    return true;
+                return true;
             }
 
             return false;
