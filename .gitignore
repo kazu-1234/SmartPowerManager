@@ -36,3 +36,6 @@ Desktop.ini
 **/__pycache__/
 *.pyc
 *.spec
+
+# ローカル専用の作業履歴（push しない）
+version_history.txt
