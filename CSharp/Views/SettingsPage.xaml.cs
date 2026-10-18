@@ -127,7 +127,7 @@ public sealed partial class SettingsPage : Page
             _ => AppThemePreference.System
         };
 
-        ThemeService.SetPreference(preference, save: false);
+        ThemeService.SetPreference(preference);
         _state.Settings.ThemePreference = preference;
         _state.Settings.Save();
     }

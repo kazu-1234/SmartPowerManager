@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using WinRT.Interop;
+using WinUiShared;
 
 namespace SmartPowerManager;
 

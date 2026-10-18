@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
 using Windows.Graphics;
 using WinRT.Interop;
+using WinUiShared;
 
 namespace SmartPowerManager.Views;
 

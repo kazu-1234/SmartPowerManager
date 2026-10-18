@@ -67,7 +67,12 @@ namespace SmartPowerManager
                 StartupManager.MigrateFromPythonRegistryIfNeeded();
 
             // primary のみタスクを更新する（--background 二重起動の CreateOrUpdate で本体が落ちるのを防ぐ）
+#if !DEBUG
+            // 起動時にログオンタスクを「今動いている exe」へ合わせ直す。
+            // Debug ビルドで行うと、インストール版の登録が bin\Debug の exe に書き換わってしまうため Release のみ。
+            // （設定画面で自動起動を切り替えたときや --sync-autostart の明示同期は Debug でも行う）
             StartupManager.SyncAutostartWithSettings(settings.AutoStart, settings.UseLogonTask);
+#endif
             settings.Save();
 
             _runtime = new AppRuntime(this, settings);
