@@ -15,7 +15,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
     <ApplicationDefaultLanguage>ja-JP</ApplicationDefaultLanguage>
-    <Version>2.3.0</Version>
+    <Version>2.3.1</Version>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- 配布（単一 exe・dotnet publish 時）に必要な WinUI unpackaged 設定 -->
     <SelfContained Condition="'$(PublishSingleFile)' == 'true'">true</SelfContained>
@@ -43,4 +43,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\WinUiAppTemplate\Shared\WinUiShared.csproj" />
   </ItemGroup>
+  <!--
+    dotnet publish（未パッケージ・自己完結）では、アプリ本体の <AssemblyName>.pri が publish フォルダへコピーされないことがある
+    （WinUiShared.pri などは入る）。.pri には XAML と .resw の文言が入っており、無いとインストール版だけが起動直後に
+    何も出さず終了する（Debug 実行は正常・ログにも例外が出ない）。publish の後にビルド出力から明示的にコピーする。
+  -->
+  <Target Name="CopyAppPriToPublishDir" AfterTargets="Publish">
+    <Copy SourceFiles="$(OutDir)$(TargetName).pri"
+          DestinationFolder="$(PublishDir)"
+          Condition="Exists('$(OutDir)$(TargetName).pri')" />
+  </Target>
 </Project>

@@ -3,10 +3,10 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:views="using:SmartPowerManager.Views"
+    xmlns:shared="using:WinUiShared"
     HorizontalAlignment="Stretch"
     VerticalAlignment="Stretch">
-    <views:PageScrollHost>
+    <shared:PageScrollHost>
         <Grid>
             <StackPanel Style="{StaticResource PageBaseStackPanelStyle}">
                 <TextBlock x:Uid="Page_Info" Style="{StaticResource PageTitleTextStyle}" />
@@ -60,5 +60,5 @@
                 </controls:SettingsCard>
             </StackPanel>
         </Grid>
-    </views:PageScrollHost>
+    </shared:PageScrollHost>
 </Page>
