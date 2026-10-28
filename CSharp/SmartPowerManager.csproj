@@ -41,7 +41,9 @@
     <PackageReference Include="TaskScheduler" Version="2.12.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\WinUiAppTemplate\Shared\WinUiShared.csproj" />
+    <!-- 共通基盤 WinUiShared は Template（..\WinUiAppTemplate\Shared）が正本。リポ単体でビルドできるようにコピーを Shared\ に同梱する。
+         直すときは Template 側を直し、scripts\sync-shared.ps1 で同期する（Shared\ を直接書き換えない） -->
+    <ProjectReference Include="..\Shared\WinUiShared.csproj" />
   </ItemGroup>
   <!--
     dotnet publish（未パッケージ・自己完結）では、アプリ本体の <AssemblyName>.pri が publish フォルダへコピーされないことがある

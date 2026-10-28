@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWinUI>true</UseWinUI>
+    <RootNamespace>WinUiShared</RootNamespace>
+    <AssemblyName>WinUiShared</AssemblyName>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <!-- VS の XAML は bin\Debug\ を見る。publish -r 時は win-x64 付き出力が必要 -->
+    <Platforms>AnyCPU;x64;x86;ARM64</Platforms>
+    <AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>
+    <PlatformTarget Condition="'$(RuntimeIdentifier)' == ''">AnyCPU</PlatformTarget>
+    <AppendRuntimeIdentifierToOutputPath Condition="'$(RuntimeIdentifier)' != ''">true</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.250402" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.0.1" />
+    <!-- 設定 JSON・更新確認の解析用（全アプリと同じ版に揃える） -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="TaskScheduler" Version="2.12.2" />
+  </ItemGroup>
+  <!-- publish -r win-x64 の PRI 結合が win-x64\WinUiShared.pri を要求するため複製する -->
+  <Target Name="CopyPriForRidPublish" AfterTargets="Build">
+    <PropertyGroup>
+      <_NoRidOut>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\</_NoRidOut>
+      <_RidOut>$(_NoRidOut)win-x64\</_RidOut>
+    </PropertyGroup>
+    <MakeDir Directories="$(_RidOut)" />
+    <Copy SourceFiles="$(_NoRidOut)$(AssemblyName).pri" DestinationFolder="$(_RidOut)" SkipUnchangedFiles="true" Condition="Exists('$(_NoRidOut)$(AssemblyName).pri')" />
+    <Copy SourceFiles="$(_NoRidOut)$(AssemblyName).dll" DestinationFolder="$(_RidOut)" SkipUnchangedFiles="true" Condition="Exists('$(_NoRidOut)$(AssemblyName).dll')" />
+  </Target>
+</Project>

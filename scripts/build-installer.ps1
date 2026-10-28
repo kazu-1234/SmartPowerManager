@@ -1,4 +1,4 @@
-# Build SmartPowerManager installer (dotnet publish + Inno Setup)
+﻿# Build SmartPowerManager installer (dotnet publish + Inno Setup)
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts\build-installer.ps1
 
@@ -25,6 +25,9 @@ $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
     throw "ISCC.exe not found. Install Inno Setup 6+."
 }
+
+# 共通基盤を Template（正本）から同期してから publish する（リリースが古い Shared で作られないように）
+& (Join-Path $PSScriptRoot "sync-shared.ps1")
 
 Write-Host "==> Publish (self-contained folder)"
 if (Test-Path $publishDir) {
