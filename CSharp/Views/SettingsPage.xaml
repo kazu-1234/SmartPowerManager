@@ -72,6 +72,16 @@
                                           Unchecked="HideTrayIconCheckBox_Changed" />
                             </controls:SettingsCard.Header>
                         </controls:SettingsCard>
+
+                        <controls:SettingsCard>
+                            <controls:SettingsCard.Header>
+                                <CheckBox x:Name="ShowStartupNotificationCheckBox"
+                                          x:Uid="Settings_ShowStartupNotification"
+                                          VerticalAlignment="Center"
+                                          Checked="ShowStartupNotificationCheckBox_Changed"
+                                          Unchecked="ShowStartupNotificationCheckBox_Changed" />
+                            </controls:SettingsCard.Header>
+                        </controls:SettingsCard>
                     </controls:SettingsExpander.Items>
                 </controls:SettingsExpander>
 

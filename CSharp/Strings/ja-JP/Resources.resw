@@ -81,6 +81,7 @@
   <data name="Settings_AutostartModeLabel.Text" xml:space="preserve"><value>登録方式</value></data>
   <data name="Settings_AutostartPathLabel.Text" xml:space="preserve"><value>登録コマンド</value></data>
   <data name="Settings_HideTrayIcon.Content" xml:space="preserve"><value>トレイアイコンの非表示</value></data>
+  <data name="Settings_ShowStartupNotification.Content" xml:space="preserve"><value>起動時に通知を表示する</value></data>
   <data name="Settings_SectionDeviceLabel.Text" xml:space="preserve"><value>デバイス連携</value></data>
   <data name="Info_SectionUpdate.Text" xml:space="preserve"><value>アップデート</value></data>
   <data name="Info_UpdateDesc.Text" xml:space="preserve"><value>GitHub リリースから最新版を確認します</value></data>

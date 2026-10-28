@@ -41,6 +41,7 @@ public sealed partial class SettingsPage : Page
         AutoStartToggle.IsOn = _state?.Settings.AutoStart ?? false;
         AutostartTaskOnlyCheckBox.IsChecked = _state?.Settings.UseLogonTask ?? true;
         HideTrayIconCheckBox.IsChecked = _state?.Settings.HideTrayIcon ?? false;
+        ShowStartupNotificationCheckBox.IsChecked = _state?.Settings.ShowStartupNotification ?? true;
         AutoStartExpander.IsExpanded = true;
         RefreshAutostartInfo();
         LoadDeviceSettings();
@@ -194,6 +195,20 @@ public sealed partial class SettingsPage : Page
         _state.Settings.HideTrayIcon = hide;
         _state.Settings.Save();
         _state.ApplyTrayIconVisibility?.Invoke();
+    }
+
+    /// <summary>起動時の「常駐準備完了」通知の ON/OFF を保存する（次回起動から反映）。</summary>
+    private void ShowStartupNotificationCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing || _state == null)
+            return;
+
+        bool show = ShowStartupNotificationCheckBox.IsChecked == true;
+        if (show == _state.Settings.ShowStartupNotification)
+            return;
+
+        _state.Settings.ShowStartupNotification = show;
+        _state.Settings.Save();
     }
 
     private void SaveDeviceSettings()

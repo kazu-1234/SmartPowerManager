@@ -81,6 +81,7 @@
   <data name="Settings_AutostartModeLabel.Text" xml:space="preserve"><value>Registration method</value></data>
   <data name="Settings_AutostartPathLabel.Text" xml:space="preserve"><value>Registered command</value></data>
   <data name="Settings_HideTrayIcon.Content" xml:space="preserve"><value>Hide tray icon</value></data>
+  <data name="Settings_ShowStartupNotification.Content" xml:space="preserve"><value>Show a notification at startup</value></data>
   <data name="Settings_SectionDeviceLabel.Text" xml:space="preserve"><value>Device integration</value></data>
   <data name="Info_SectionUpdate.Text" xml:space="preserve"><value>Updates</value></data>
   <data name="Info_UpdateDesc.Text" xml:space="preserve"><value>Check for the latest version from GitHub Releases</value></data>
