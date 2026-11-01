@@ -31,11 +31,21 @@ public sealed class TitleBarThemeHelper
         ThemeService.ThemeChanged += OnThemeChanged;
         // ThemeChanged は static イベントなので、解除しないと閉じたウィンドウが参照され続ける。
         // Window は都度 new / Close する設計のため、閉じたら必ず購読を外す。
-        window.Closed += (_, _) => ThemeService.ThemeChanged -= OnThemeChanged;
+        window.Closed += OnWindowClosed;
         ApplyCaptionHoverColor();
     }
 
     private void OnThemeChanged(object? sender, EventArgs e) => ApplyCaptionHoverColor();
+
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        ThemeService.ThemeChanged -= OnThemeChanged;
+
+        // Closed の登録自体も外す。Window（ネイティブ側）が「この helper → _window」を指すハンドラーを持ったままだと、
+        // .NET の GC からは解けない循環参照になり、閉じたウィンドウが中身ごと回収されずに残る
+        // （開閉のたびにメモリ約 7MB・ハンドル約 45 が増えていた）。
+        _window.Closed -= OnWindowClosed;
+    }
 
     public void ApplyCaptionHoverColor()
     {

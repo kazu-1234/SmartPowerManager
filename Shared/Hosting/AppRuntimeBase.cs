@@ -246,19 +246,83 @@ public abstract class AppRuntimeBase : IDisposable
 
         if (_mainWindow != null)
         {
-            BringWindowToForeground(_mainWindow);
-            if (pageTag != null)
-                AsMainWindow(_mainWindow).NavigateToPageTag(pageTag);
-            return;
+            if (BringWindowToForeground(_mainWindow))
+            {
+                if (pageTag != null)
+                    AsMainWindow(_mainWindow).NavigateToPageTag(pageTag);
+                return;
+            }
+
+            // 前面に出せない＝窓がもう壊れている（Closed が来ないまま死んだ等）。
+            // 覚えたままだと、以後何度開こうとしても何も出ないので、捨てて下で作り直す
+            AppHost.AppendLifetimeLog("main-window-stale recreate");
+            DiscardMainWindow(_mainWindow);
         }
 
         // Window は Close で内部状態が壊れやすく Hide→Show の再利用は不具合の元なので、表示のたびに new する
-        Window window = CreateMainWindow();
+        Window window;
+        try
+        {
+            window = CreateMainWindow();
+        }
+        catch (Exception ex)
+        {
+            // XAML 読み込み失敗など。_mainWindow は null のままなので、次に開くときにまた作り直せる
+            AppHost.AppendLifetimeLog($"main-window-create-failed {ex.GetType().Name}: {ex.Message}");
+            ExitIfNoWayToReopen();
+            return;
+        }
+
         _mainWindow = window;
         window.Closed += MainWindow_Closed;
-        AsMainWindow(window).PrepareAndActivate(pageTag);
+        try
+        {
+            AsMainWindow(window).PrepareAndActivate(pageTag);
+        }
+        catch (Exception ex)
+        {
+            // 表示の途中で失敗した半端な窓を覚えたままにすると、次からトレイで開いても
+            // 「既にある窓を前面へ」になるだけで何も出ない。片付けて、次回は新しく作る
+            AppHost.AppendLifetimeLog($"main-window-show-failed {ex.GetType().Name}: {ex.Message}");
+            DiscardMainWindow(window);
+            ExitIfNoWayToReopen();
+            return;
+        }
+
         OnMainWindowCreated(window);
         ScheduleStartupUpdateCheckIfNeeded();
+    }
+
+    /// <summary>
+    /// 窓を出せなかったとき、ウィンドウ型（トレイ無し）なら終了する。
+    /// 残すと「窓もトレイも無いのにプロセスだけ居る」状態になり、もう一度起動しても二重起動扱いで開けないため。
+    /// 常駐型はトレイから開き直せるので残す。
+    /// </summary>
+    private void ExitIfNoWayToReopen()
+    {
+        if (!IsKeepRunning)
+            ExitApplication("main-window-failed");
+    }
+
+    /// <summary>
+    /// 壊れた・表示に失敗した MainWindow を手放す。Closed の購読を先に外すので、
+    /// ウィンドウ型でもこれでプロセス終了にはならない（次の表示依頼で作り直す）。
+    /// </summary>
+    private void DiscardMainWindow(Window window)
+    {
+        try { window.Closed -= MainWindow_Closed; } catch { }
+        if (ReferenceEquals(_mainWindow, window))
+            _mainWindow = null;
+
+        try
+        {
+            window.Close();
+        }
+        catch (Exception ex)
+        {
+            // すでに死んでいる窓は Close も失敗しうる。参照は外したので、それ以上は何もしない
+            Debug.WriteLine($"DiscardMainWindow close failed: {ex.Message}");
+        }
     }
 
     private static IAppMainWindow AsMainWindow(Window window) =>
@@ -316,8 +380,11 @@ public abstract class AppRuntimeBase : IDisposable
 #endif
     }
 
-    /// <summary>最小化を戻し、前面に出す。</summary>
-    private static void BringWindowToForeground(Window window)
+    /// <summary>
+    /// 最小化を戻し、前面に出す。窓が壊れていて操作自体が例外になったときだけ false
+    /// （SetForegroundWindow がフォーカス制限で効かないのは正常なので true のまま）。
+    /// </summary>
+    private static bool BringWindowToForeground(Window window)
     {
         try
         {
@@ -334,10 +401,12 @@ public abstract class AppRuntimeBase : IDisposable
             IntPtr hwnd = WindowNative.GetWindowHandle(window);
             if (hwnd != IntPtr.Zero)
                 SetForegroundWindow(hwnd);
+            return true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"BringWindowToForeground failed: {ex.Message}");
+            AppHost.AppendLifetimeLog($"bring-to-front-failed {ex.GetType().Name}: {ex.Message}");
+            return false;
         }
     }
 
