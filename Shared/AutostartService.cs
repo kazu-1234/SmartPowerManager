@@ -20,6 +20,11 @@ public sealed class AutostartIdentity
     public string[] ExtraPathTokens { get; init; } = [];
     public string[] StartupShortcutNames { get; init; } = [];
     public string[] StartupShortcutGlobs { get; init; } = [];
+
+    /// <summary>
+    /// 登録する exe（null なら自分自身）。別アプリ（管理ツール等）が、そのアプリ自身と同じ形のタスクを代わりに登録するときに使う。
+    /// </summary>
+    public string? ExecutablePath { get; init; }
 }
 
 /// <summary>
@@ -148,11 +153,14 @@ public static class AutostartService
         return Path.GetFullPath(path);
     }
 
+    private static string GetTargetExecutablePath(AutostartIdentity id) =>
+        string.IsNullOrWhiteSpace(id.ExecutablePath) ? GetExecutablePath() : Path.GetFullPath(id.ExecutablePath);
+
     private static bool CreateRegistryStartup(AutostartIdentity id)
     {
         try
         {
-            string exePath = GetExecutablePath();
+            string exePath = GetTargetExecutablePath(id);
             string value = $"\"{exePath}\" {id.BackgroundArg}";
             using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true)
                 ?? Registry.CurrentUser.CreateSubKey(RunKeyPath);
@@ -206,7 +214,7 @@ public static class AutostartService
     {
         try
         {
-            string exePath = GetExecutablePath();
+            string exePath = GetTargetExecutablePath(id);
             string? workingDir = Path.GetDirectoryName(exePath);
             string folderName = TaskFolderName(id);
 
@@ -296,7 +304,7 @@ public static class AutostartService
     {
         try
         {
-            string currentExe = Path.GetFullPath(GetExecutablePath());
+            string currentExe = GetTargetExecutablePath(id);
             string currentFolder = TaskFolderName(id);
 
             using TaskService taskService = new();
