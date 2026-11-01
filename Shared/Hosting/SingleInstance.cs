@@ -84,6 +84,12 @@ public static class SingleInstance
         try { onBecamePrimary?.Invoke(); }
         catch (Exception ex) { Debug.WriteLine($"onBecamePrimary failed: {ex.Message}"); }
 
+        // primary になる前に出された終了依頼は、このプロセス宛てではない（前の版を閉じるためのもの）。
+        // 旧版のインストーラは相手がいなくても終了ファイルを書くので、残っていればここで捨てる。
+        // 捨てないと、インストール直後やログオン時に起動した直後に終了してしまう
+        if (SingleInstance.TryConsumeExitSignal())
+            AppHost.AppendLifetimeLog("stale-exit-signal-cleared");
+
         // AutoReset: 1 回 Set すると待っている側を 1 回だけ起こして自動で戻る
         _interactiveShowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, InteractiveShowEventName);
         _exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
@@ -198,22 +204,42 @@ public static class SingleInstance
         TryWriteSignalFile(SignalFilePath);
     }
 
-    /// <summary>既存インスタンスへ終了を依頼する（インストーラ / --exit 用）。ファイルが本体、イベントは起床用。</summary>
+    /// <summary>
+    /// 既存インスタンスへ終了を依頼する（インストーラ / --exit 用）。ファイルが本体、イベントは起床用。
+    /// 起動中のインスタンスが無い（イベントが開けない）ときは何も書かない。
+    /// 書いてしまうと誰にも消費されずに残り、インストール直後に起動した新しい版がそれを拾って即終了する
+    /// （「インストール後に起動する」にチェックしても起動しない不具合の原因だった）。
+    /// </summary>
     public static void SignalExit()
     {
-        TryWriteSignalFile(ExitSignalFilePath);
-
+        EventWaitHandle exitEvent;
         try
         {
-            using var exitEvent = EventWaitHandle.OpenExisting(ExitEventName);
-            exitEvent.Set();
+            exitEvent = EventWaitHandle.OpenExisting(ExitEventName);
         }
         catch (WaitHandleCannotBeOpenedException)
         {
+            // 起動中のインスタンスが無い。終了させる相手がいないので依頼も残さない
+            return;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"SignalExit event failed: {ex.Message}");
+            return;
+        }
+
+        using (exitEvent)
+        {
+            // 先にファイルを書いてから起こす（起きた側がファイルを見て「本物の終了依頼」と判断するため）
+            TryWriteSignalFile(ExitSignalFilePath);
+            try
+            {
+                exitEvent.Set();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SignalExit set failed: {ex.Message}");
+            }
         }
     }
 

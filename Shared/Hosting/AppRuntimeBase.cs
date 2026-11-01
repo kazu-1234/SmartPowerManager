@@ -815,9 +815,10 @@ public abstract class AppRuntimeBase : IDisposable
     {
         while (!token.IsCancellationRequested)
         {
+            bool signaled;
             try
             {
-                handle.WaitOne(ListenerPollMs);
+                signaled = handle.WaitOne(ListenerPollMs);
             }
             catch (ObjectDisposedException)
             {
@@ -827,7 +828,9 @@ public abstract class AppRuntimeBase : IDisposable
             if (token.IsCancellationRequested)
                 break;
 
-            if (SingleInstance.TryConsumeExitSignal())
+            // イベントで起こされていないのにファイルだけ見て終了すると、
+            // 誰かが残した古い終了ファイルで起動直後に落ちる。両方そろったときだけ終了する
+            if (signaled && SingleInstance.TryConsumeExitSignal())
                 UiDispatcher.TryEnqueue(() => ExitApplication("exit-signal"));
         }
     }

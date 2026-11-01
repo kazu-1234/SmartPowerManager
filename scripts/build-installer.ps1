@@ -8,7 +8,7 @@ chcp 65001 | Out-Null
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$version = "2.3.2"
+$version = "2.3.3"
 $publishDir = Join-Path $root "dist\folder"
 $iss = Join-Path $root "installer\SmartPowerManager.iss"
 $outDir = Join-Path $root "dist\installer"
