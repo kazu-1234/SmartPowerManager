@@ -485,7 +485,17 @@ public abstract class AppRuntimeBase : IDisposable
 
         try { SingleInstance.Release(); } catch { }
 
-        try { _app.Exit(); } catch { }
+        // 窓を閉じた直後に同じ処理の中で Exit すると、窓の後始末が済まないまま終了処理に入り、
+        // プロセスが消えるまで 6〜9 秒止まる（DevToolManager で実測。窓を先に閉じておけば 0.3 秒で終わる）。
+        // インストーラーは --exit の 1.5 秒後に exe を上書きするので、窓があったときは Exit を
+        // UI スレッドの次の順番（Low）に回し、閉じる処理を先に済ませる。積めなければその場で Exit する
+        void ExitApp()
+        {
+            try { _app.Exit(); } catch { }
+        }
+
+        if (window == null || !UiDispatcher.TryEnqueue(DispatcherQueuePriority.Low, ExitApp))
+            ExitApp();
     }
 
     public void Dispose()

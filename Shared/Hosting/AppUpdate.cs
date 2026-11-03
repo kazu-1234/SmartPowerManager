@@ -10,6 +10,10 @@ namespace WinUiShared;
 /// GitHub Releases 経由の更新確認と、setup.exe のダウンロード・起動（全アプリ共通）。
 /// URL・User-Agent・Temp フォルダ名は AppProfile から取る。文言はアプリの .resw（Update_* キー）。
 /// UI 側の流れ（InfoBar・起動時ダイアログ）は <see cref="UpdateFlow"/> / <see cref="InfoUpdateUi"/>。
+///
+/// プライベートリポにも対応する: まず認証なしで確認し、404（非公開）のときだけ、この PC の GitHub のログイン情報
+/// （<see cref="GitHubCredential"/>）を付けてやり直す。公開リポならログイン情報は一切読まないので、
+/// リポを後から公開にしても設定を変えずにそのまま動き、ログイン情報が外へ出ることもない。
 /// </summary>
 public static class AppUpdate
 {
@@ -19,13 +23,18 @@ public static class AppUpdate
     /// <summary>setup.exe ダウンロードの待ち時間上限。</summary>
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
+    /// <summary>リダイレクトをたどる回数の上限（ファイルの置き場所への転送や、リポ名変更の転送に使われる）。</summary>
+    private const int MaxRedirects = 5;
+
     /// <summary>
     /// HttpClient はプロセスで 1 個を使い回す（呼ぶたびに new すると接続が TIME_WAIT で残りやすい）。
     /// 処理ごとに待ち時間が違うので、Timeout は無制限にしておき、呼び出しごとに CancellationToken で切る。
+    /// リダイレクトは自動でたどらず <see cref="SendAsync"/> で 1 回ずつ処理する（転送先にトークンを持ち出さないため）。
     /// </summary>
     private static readonly Lazy<HttpClient> SharedClient = new(() =>
     {
-        var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         // GitHub API は User-Agent が無いと 403 を返す
         client.DefaultRequestHeaders.UserAgent.ParseAdd(AppHost.Profile.AppName);
         return client;
@@ -64,7 +73,7 @@ public static class AppUpdate
         try
         {
             using var cts = new CancellationTokenSource(CheckTimeout);
-            string json = await SharedClient.Value.GetStringAsync(apiUrl, cts.Token);
+            var (json, authenticated) = await GetReleaseJsonAsync(apiUrl, cts.Token);
             var release = JObject.Parse(json);
             string? tagName = release["tag_name"]?.ToString();
             string? htmlUrl = release["html_url"]?.ToString();
@@ -83,7 +92,7 @@ public static class AppUpdate
 
             if (compare > 0)
             {
-                var (downloadUrl, assetFileName) = SelectSetupAsset(release["assets"] as JArray);
+                var (downloadUrl, assetFileName) = SelectSetupAsset(release["assets"] as JArray, authenticated);
 
                 return new UpdateCheckResult
                 {
@@ -116,10 +125,72 @@ public static class AppUpdate
     }
 
     /// <summary>
+    /// リリース情報（JSON）を取る。まず認証なしで取り、GitHub API が 404（非公開リポ）を返したときだけ
+    /// この PC のログイン情報を付けてやり直す。authenticated = ログイン情報を使って取れたか。
+    /// ログイン情報が無い・使えないときは、認証なしの結果（404）のままエラーにする。
+    /// </summary>
+    private static async Task<(string Json, bool Authenticated)> GetReleaseJsonAsync(string apiUrl, CancellationToken ct)
+    {
+        const string accept = "application/vnd.github+json";
+        using (var anonymous = await SendAsync(apiUrl, null, accept, ct))
+        {
+            if (anonymous.StatusCode != System.Net.HttpStatusCode.NotFound || !IsGitHubApi(new Uri(apiUrl)))
+            {
+                anonymous.EnsureSuccessStatusCode();
+                return (await anonymous.Content.ReadAsStringAsync(ct), false);
+            }
+        }
+
+        string? token = await GitHubCredential.TryGetTokenAsync();
+        using var response = await SendAsync(apiUrl, token, accept, ct);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadAsStringAsync(ct), token != null);
+    }
+
+    /// <summary>
+    /// GET を送り、リダイレクトを 1 回ずつ自分でたどる。
+    /// トークンは https://api.github.com 宛てのときだけ付け、ほかのホスト（ファイルの置き場所など）へは付けない。
+    /// http への転送はたどらない（トークンを付けない通信でも、ダウンロードした setup.exe のすり替えを防ぐため）。
+    /// </summary>
+    private static async Task<HttpResponseMessage> SendAsync(string url, string? token, string accept, CancellationToken ct)
+    {
+        var uri = new Uri(url);
+        for (int i = 0; ; i++)
+        {
+            if (uri.Scheme != Uri.UriSchemeHttps)
+                throw new HttpRequestException($"Refused non-HTTPS URL: {uri.Host}");
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            request.Headers.Accept.ParseAdd(accept);
+            if (token != null && IsGitHubApi(uri))
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // 本文は呼び出し側で読む（大きな setup.exe を一度にメモリへ読み込まないよう、ヘッダーまでで返す）
+            var response = await SharedClient.Value.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            int status = (int)response.StatusCode;
+            if (status is < 300 or >= 400 || response.Headers.Location == null)
+                return response;
+
+            response.Dispose();
+            if (i >= MaxRedirects)
+                throw new HttpRequestException("Too many redirects");
+            // Location は相対のこともあるので、今の URL を基準に組み立てる
+            uri = new Uri(uri, response.Headers.Location);
+        }
+    }
+
+    private static bool IsGitHubApi(Uri uri) =>
+        uri.Scheme == Uri.UriSchemeHttps && uri.Host.Equals(GitHubCredential.ApiHost, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Inno の setup.exe を優先選択する（単体アプリ exe は選ばない）。
     /// setup が無い場合のみ他の exe（後方互換）。
     /// </summary>
-    private static (string? DownloadUrl, string? FileName) SelectSetupAsset(JArray? assets)
+    /// <param name="authenticated">
+    /// 非公開リポ（ログイン情報で取れた）とき true。browser_download_url はログインしたブラウザ専用なので、
+    /// 代わりに API の asset URL（https://api.github.com/.../releases/assets/{id}）を使う。
+    /// </param>
+    private static (string? DownloadUrl, string? FileName) SelectSetupAsset(JArray? assets, bool authenticated)
     {
         if (assets == null)
             return (null, null);
@@ -130,7 +201,7 @@ public static class AppUpdate
         foreach (var asset in assets.OfType<JObject>())
         {
             string? name = asset["name"]?.ToString();
-            string? url = asset["browser_download_url"]?.ToString();
+            string? url = asset[authenticated ? "url" : "browser_download_url"]?.ToString();
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url))
                 continue;
 
@@ -189,9 +260,15 @@ public static class AppUpdate
 
         using (var cts = new CancellationTokenSource(DownloadTimeout))
         {
-            await using var response = await SharedClient.Value.GetStreamAsync(downloadUrl, cts.Token);
+            // 非公開リポの asset URL（api.github.com）のときだけ、その場でログイン情報を読み直して付ける（保持しない）。
+            // octet-stream を指定すると、GitHub はファイルの置き場所（別ホスト）へ転送する。転送先にはトークンを付けない
+            Uri uri = new(downloadUrl);
+            string? token = IsGitHubApi(uri) ? await GitHubCredential.TryGetTokenAsync() : null;
+            using var response = await SendAsync(downloadUrl, token, "application/octet-stream", cts.Token);
+            response.EnsureSuccessStatusCode();
+            await using var body = await response.Content.ReadAsStreamAsync(cts.Token);
             await using var file = File.Create(targetPath);
-            await response.CopyToAsync(file, cts.Token);
+            await body.CopyToAsync(file, cts.Token);
         }
 
         progress?.Report(AppHost.GetString("Update_LaunchingSetup"));

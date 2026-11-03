@@ -147,12 +147,23 @@ public sealed class PageScrollHost : ContentControl
         });
     }
 
+    /// <summary>
+    /// 判定してよい状態か。終了処理中や、窓が閉じてページが画面から外れた（XamlRoot が無い）あとは何もしない。
+    /// 後回しにした判定が窓を閉じたあとに走り、壊れかけの窓に UpdateLayout すると
+    /// AccessViolationException でプロセスごと落ちる（終了時に Exit を次の順番へ回したことで起きた）。
+    /// </summary>
+    private bool CanUpdate() =>
+        _scrollViewer != null
+        && XamlRoot != null
+        && _scrollViewer.XamlRoot != null
+        && AppHost.Runtime?.IsExitingProcess != true;
+
     private void UpdateScrollability()
     {
-        if (_scrollViewer == null)
+        if (!CanUpdate())
             return;
 
-        _scrollViewer.UpdateLayout();
+        _scrollViewer!.UpdateLayout();
         _contentRoot?.UpdateLayout();
 
         ApplyAndResetOffset(ComputeNeedsScroll());
@@ -160,7 +171,7 @@ public sealed class PageScrollHost : ContentControl
         // レイアウト確定後にもう一度判定する（直後はサイズが古いことがある）
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
-            if (_scrollViewer != null)
+            if (CanUpdate())
                 ApplyAndResetOffset(ComputeNeedsScroll());
         });
     }
