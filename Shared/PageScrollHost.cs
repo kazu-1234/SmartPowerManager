@@ -58,6 +58,12 @@ public sealed class PageScrollHost : ContentControl
     public void InvalidateScrollability() => ScheduleUpdateScrollability();
 
     /// <summary>
+    /// 今の中身が画面に収まらない（縦スクロールが要る）か。その場で測り直して答える
+    /// （YouTubeDownloader が、画面に収まるまで古いカードを減らすのに使う。呼ぶ前に UpdateLayout しておく）。
+    /// </summary>
+    public bool NeedsVerticalScroll => HostScrollViewer != null && ComputeNeedsScroll();
+
+    /// <summary>
     /// プログラムからのスクロール（ドラッグ中の自動スクロールなど）を許可する。
     /// 中身がはみ出しているときだけ有効にする（収まっているのに有効にすると、ページが少し動いてしまうため）。
     /// </summary>
