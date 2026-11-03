@@ -373,6 +373,14 @@ public abstract class AppRuntimeBase : IDisposable
             return;
         }
 
+        // 常駐型でも、ログオン自動起動を使うアプリで自動起動を OFF にしているときは、窓を閉じたらプロセスも終了する
+        // （自動起動しない設定 = 常駐させる意図が無いので、トレイに残さない。ユーザーの指示、2026-11-04）
+        if (Profile.UseAutoStart && !_hostSettings.AutoStart)
+        {
+            ExitApplication("window-close-autostart-off");
+            return;
+        }
+
 #if DEBUG
         // 常駐型でもデバッガ実行中はトレイが無いので、閉じたら終了する
         if (!ShouldUseTray())

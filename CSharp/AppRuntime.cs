@@ -1,4 +1,4 @@
-// v2.3.3
+// v2.3.4
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
