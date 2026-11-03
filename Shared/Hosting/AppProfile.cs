@@ -64,14 +64,36 @@ public sealed class AppProfile
     /// </summary>
     public Func<bool, bool>? SyncAutostart { get; init; }
 
+    /// <summary>
+    /// 自動起動の窓口（<see cref="AutostartController"/>）。渡すと、--sync-autostart / --cleanup-autostart の処理、
+    /// 起動時の移行・同期（<see cref="AppBootstrap.BeginPrimaryLaunch"/>）、終了時の掃除を共通部が行う。
+    /// <see cref="SyncAutostart"/> は旧方式（移行が済むまで残す）。両方渡したときはこちらを優先する。
+    /// </summary>
+    public IAutostartController? Autostart { get; init; }
+
+    /// <summary>
+    /// 設定ファイルを読む（各アプリの Settings.Load を渡す）。
+    /// --sync-autostart のときに、WinUI を起動せず自動起動の設定だけを読むために使う。
+    /// </summary>
+    public Func<IAppHostSettings>? LoadSettings { get; init; }
+
     /// <summary>リソース文字列の取得（各アプリの Strings.Get を渡す）。共通 UI の文言もアプリの .resw から引く。</summary>
     public required Func<string, string> GetString { get; init; }
 
     /// <summary>書式付きリソース文字列の取得（各アプリの Strings.Format を渡す）。</summary>
     public required Func<string, object[], string> FormatString { get; init; }
 
-    /// <summary>自動起動を使うか（<see cref="SyncAutostart"/> が渡されているか）。</summary>
-    public bool UseAutoStart => SyncAutostart != null;
+    /// <summary>自動起動を使うか（<see cref="Autostart"/> か <see cref="SyncAutostart"/> が渡されているか）。</summary>
+    public bool UseAutoStart => Autostart != null || SyncAutostart != null;
+
+    /// <summary>自動起動の登録を消す（終了時の掃除用。自動起動を使わないアプリでは何もしない）。</summary>
+    public void CleanupAutostart()
+    {
+        if (Autostart != null)
+            Autostart.Cleanup();
+        else
+            SyncAutostart?.Invoke(false);
+    }
 
     /// <summary>%AppData%\&lt;AppName&gt;。設定・PID・信号ファイルの置き場所。</summary>
     public string AppDataDirectory =>

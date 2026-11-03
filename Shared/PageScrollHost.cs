@@ -50,7 +50,34 @@ public sealed class PageScrollHost : ContentControl
         Template = (ControlTemplate)XamlReader.Load(TemplateXaml);
 
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         SizeChanged += (_, __) => ScheduleUpdateScrollability();
+    }
+
+    /// <summary>パターン描画後など、明示的にスクロール要否を再計算する（LeftHandDevice が使う）。</summary>
+    public void InvalidateScrollability() => ScheduleUpdateScrollability();
+
+    /// <summary>
+    /// プログラムからのスクロール（ドラッグ中の自動スクロールなど）を許可する。
+    /// 中身がはみ出しているときだけ有効にする（収まっているのに有効にすると、ページが少し動いてしまうため）。
+    /// </summary>
+    public void EnsureVerticalScrollEnabled()
+    {
+        if (HostScrollViewer == null)
+            return;
+
+        if (ComputeNeedsScroll())
+            ApplyScrollState(true);
+    }
+
+    /// <summary>テンプレート内の ScrollViewer（テンプレート適用前なら、その場で取り出す。無ければ null）。</summary>
+    public ScrollViewer? HostScrollViewer
+    {
+        get
+        {
+            _scrollViewer ??= GetTemplateChild("PART_ScrollViewer") as ScrollViewer;
+            return _scrollViewer;
+        }
     }
 
     /// <summary>テンプレート適用時（1 回）に ScrollViewer を取り出し、スタイルとイベントを付ける。</summary>
@@ -80,6 +107,18 @@ public sealed class PageScrollHost : ContentControl
     {
         WatchContentRoot(Content as FrameworkElement);
         ScheduleUpdateScrollability();
+    }
+
+    /// <summary>
+    /// 画面から外れたら（ページ移動・窓を閉じる）中身の購読を外す。
+    /// LayoutUpdated は窓のどこかでレイアウトが走るたびに全購読者へ届くので、外さないと
+    /// 見えなくなった過去のページまで判定を積み続け、メモリも解放されない（iPhoneMediaBackup で判明）。
+    /// もう一度表示されたときは OnLoaded で付け直す。
+    /// </summary>
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_contentRoot != null)
+            UnwatchContentRoot(_contentRoot);
     }
 
     protected override void OnContentChanged(object oldContent, object newContent)
@@ -154,6 +193,7 @@ public sealed class PageScrollHost : ContentControl
     /// </summary>
     private bool CanUpdate() =>
         _scrollViewer != null
+        && IsLoaded
         && XamlRoot != null
         && _scrollViewer.XamlRoot != null
         && AppHost.Runtime?.IsExitingProcess != true;

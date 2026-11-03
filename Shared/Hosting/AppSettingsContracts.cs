@@ -39,5 +39,11 @@ public interface IAppHostSettings : IUpdateSettings, IWindowPlacementSettings
     /// <summary>ログオン自動起動。自動起動を使わないアプリは常に false。</summary>
     bool AutoStart { get; }
 
+    /// <summary>
+    /// true: ログオンタスクで自動起動 / false: スタートアップ（レジストリ Run）。
+    /// 既定実装で true を返すので、方式を選べないアプリ（タスク専用）は実装しなくてよい。
+    /// </summary>
+    bool UseLogonTask => true;
+
     new void Save();
 }

@@ -60,7 +60,12 @@ namespace WinUiShared
             int x = settings.WindowX;
             int y = settings.WindowY;
 
-            var display = (x >= 0 && y >= 0)
+            // 主画面より左・上のモニターは座標が負になるので、「負なら未保存」とは判定しない
+            // （以前はそう判定していたため、左のサブモニターで閉じると次回は主画面の中央に出ていた）
+            bool unsaved = IsUnsavedPosition(x, y);
+
+            // 保存位置がどのモニターにも入らないとき（モニターを外したときなど）は、一番近いモニターへ寄せる
+            var display = !unsaved
                 ? DisplayArea.GetFromPoint(new PointInt32(x, y), DisplayAreaFallback.Nearest)
                 : DisplayArea.GetFromWindowId(window.AppWindow.Id, DisplayAreaFallback.Primary);
             display ??= DisplayArea.GetFromWindowId(window.AppWindow.Id, DisplayAreaFallback.Primary);
@@ -71,7 +76,7 @@ namespace WinUiShared
                 width = Math.Clamp(width, 400, Math.Max(400, work.Width));
                 height = Math.Clamp(height, 300, Math.Max(300, work.Height));
 
-                if (x < 0 || y < 0)
+                if (unsaved)
                 {
                     x = work.X + Math.Max(0, (work.Width - width) / 2);
                     y = work.Y + Math.Max(0, (work.Height - height) / 2);
@@ -82,7 +87,7 @@ namespace WinUiShared
                     y = Math.Clamp(y, work.Y, work.Y + Math.Max(0, work.Height - height));
                 }
             }
-            else if (x < 0 || y < 0)
+            else if (unsaved)
             {
                 x = 100;
                 y = 100;
@@ -108,6 +113,14 @@ namespace WinUiShared
             window.AppWindow.MoveAndResize(new RectInt32(x, y, width, height));
             SetWindowPlacement(hwnd, ref placement);
         }
+
+        /// <summary>
+        /// 位置が未保存か。各アプリの設定の既定値は (-1, -1) なので、その組だけを未保存とみなす。
+        /// int.MinValue は「あり得ない座標」として未保存の印に使えるよう、こちらも未保存扱いにする。
+        /// （(-1, -1) にぴったり窓を置いた場合は中央に戻るが、実用上ほぼ起きない）
+        /// </summary>
+        private static bool IsUnsavedPosition(int x, int y) =>
+            (x == -1 && y == -1) || x == int.MinValue || y == int.MinValue;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct Point

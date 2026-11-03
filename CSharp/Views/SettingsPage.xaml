@@ -21,8 +21,7 @@
                         </StackPanel>
                     </controls:SettingsCard.Header>
                     <ComboBox x:Name="ThemeComboBox"
-                              Style="{StaticResource CompactComboBoxThemeStyle}"
-                              SelectionChanged="ThemeComboBox_SelectionChanged" />
+                              Style="{StaticResource CompactComboBoxThemeStyle}" />
                 </controls:SettingsCard>
 
                 <TextBlock x:Uid="Settings_SectionStartupLabel" Style="{StaticResource SettingsSectionHeaderStyle}" />
@@ -35,16 +34,14 @@
                         <Thickness x:Key="SettingsExpanderItemPadding">16,8,16,8</Thickness>
                         <Thickness x:Key="ClickableSettingsExpanderItemPadding">16,8,16,8</Thickness>
                     </controls:SettingsExpander.Resources>
-                    <ToggleSwitch x:Name="AutoStartToggle" Toggled="AutoStartToggle_Toggled" />
+                    <ToggleSwitch x:Name="AutoStartToggle" />
                     <controls:SettingsExpander.Items>
                         <controls:SettingsCard>
                             <controls:SettingsCard.Header>
                                 <CheckBox x:Name="AutostartTaskOnlyCheckBox"
                                           x:Uid="Settings_AutostartTaskOnly"
                                           VerticalAlignment="Center"
-                                          IsChecked="True"
-                                          Checked="AutostartTaskOnlyCheckBox_Changed"
-                                          Unchecked="AutostartTaskOnlyCheckBox_Changed" />
+                                          IsChecked="True" />
                             </controls:SettingsCard.Header>
                         </controls:SettingsCard>
 
@@ -59,17 +56,14 @@
                                 </StackPanel>
                             </controls:SettingsCard.Header>
                             <Button x:Name="RefreshAutostartButton"
-                                    x:Uid="Settings_RefreshAutostart"
-                                    Click="RefreshAutostartButton_Click" />
+                                    x:Uid="Settings_RefreshAutostart" />
                         </controls:SettingsCard>
 
                         <controls:SettingsCard>
                             <controls:SettingsCard.Header>
                                 <CheckBox x:Name="HideTrayIconCheckBox"
                                           x:Uid="Settings_HideTrayIcon"
-                                          VerticalAlignment="Center"
-                                          Checked="HideTrayIconCheckBox_Changed"
-                                          Unchecked="HideTrayIconCheckBox_Changed" />
+                                          VerticalAlignment="Center" />
                             </controls:SettingsCard.Header>
                         </controls:SettingsCard>
 
@@ -77,9 +71,7 @@
                             <controls:SettingsCard.Header>
                                 <CheckBox x:Name="ShowStartupNotificationCheckBox"
                                           x:Uid="Settings_ShowStartupNotification"
-                                          VerticalAlignment="Center"
-                                          Checked="ShowStartupNotificationCheckBox_Changed"
-                                          Unchecked="ShowStartupNotificationCheckBox_Changed" />
+                                          VerticalAlignment="Center" />
                             </controls:SettingsCard.Header>
                         </controls:SettingsCard>
                     </controls:SettingsExpander.Items>

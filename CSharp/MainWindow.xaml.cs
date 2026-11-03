@@ -1,83 +1,82 @@
-﻿using Microsoft.UI.Windowing;
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Animation;
-using Microsoft.UI.Xaml.Navigation;
 using SmartPowerManager.Views;
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using WinRT.Interop;
 using WinUiShared;
 
 namespace SmartPowerManager;
 
+/// <summary>
+/// メインウィンドウ。テーマ・タイトルバー・窓の位置の保存と復元・左ナビのページ移動・閉じる処理は
+/// 共通部の MainWindowShell が行う。このファイルには、このアプリ固有の値（サイズ・ページ表）と、
+/// アイコンの設定（失敗時の予備あり）・スケジュール表示の更新だけを書く。
+/// </summary>
 public sealed partial class MainWindow : Window, IAppMainWindow
 {
+    // 保存値が無いときの窓の大きさ（物理ピクセル）と最小サイズ（DIP）
     private const int DefaultClientWidth = 960;
     private const int DefaultClientHeight = 680;
     private const double MinimumWindowWidth = 870;
     private const double MinimumWindowHeight = 600;
 
-    private readonly AppRuntime _runtime;
-    private readonly AppState _appState;
-    private bool _windowBoundsReady;
-    private string _currentPageTag = "Shutdown";
-    private readonly TitleBarThemeHelper _titleBarThemeHelper;
+    private const string IconFileName = "app_icon.ico";
+
+    private readonly MainWindowShell _shell;
 
     public MainWindow(AppRuntime runtime)
     {
-        _runtime = runtime;
-        _appState = runtime.AppState;
-
         InitializeComponent();
-        Title = Strings.Get("AppName");
-        AppTitleBar.Title = Strings.Get("AppName");
+
+        _shell = new MainWindowShell(this, new MainWindowShellOptions
+        {
+            RootElement = RootGrid,
+            TitleBar = AppTitleBar,
+            NavView = NavView,
+            ContentFrame = ContentFrame,
+            PlacementSettings = runtime.Settings,
+            DefaultWidth = DefaultClientWidth,
+            DefaultHeight = DefaultClientHeight,
+            MinimumWidth = MinimumWindowWidth,
+            MinimumHeight = MinimumWindowHeight,
+            DefaultPageTag = "Shutdown",
+            // アイコンは下の ApplyWindowIcon が設定する（SetIcon が失敗したときに LoadImage で付け直す予備があるため）。
+            // 共通部にも設定させると二重になるので、空にして共通部の設定を止める
+            IconFileName = string.Empty,
+            ResolvePageType = ResolvePageType,
+            NavigationParameter = () => runtime.AppState
+        });
+
         ApplyWindowIcon();
-
-        ThemeService.AttachRoot(RootGrid);
-        _titleBarThemeHelper = new TitleBarThemeHelper(this, RootGrid, AppTitleBar);
-
-        AppWindow.Closing += AppWindow_Closing;
-        AppWindow.Changed += AppWindow_Changed;
-        ContentFrame.NavigationFailed += ContentFrame_NavigationFailed;
-
-        ConfigureMinimumWindowSize();
     }
 
-    /// <summary>
-    /// Auto Dark Mode / BlueShift と同じ順序: Navigate → 位置サイズ復元 → Activate。
-    /// </summary>
-    public void PrepareAndActivate(string? initialPageTag = null)
-    {
-        string tag = string.IsNullOrEmpty(initialPageTag) ? GetDefaultPageTag() : initialPageTag;
-        NavigateToPage(tag, force: true, suppressTransition: true);
-        RestoreWindowBounds();
-        _windowBoundsReady = true;
+    public void PrepareAndActivate(string? initialPageTag = null) => _shell.PrepareAndActivate(initialPageTag);
 
-        AppWindow.IsShownInSwitchers = true;
-        Activate();
-    }
+    public void NavigateToPageTag(string tag) => _shell.NavigateToPageTag(tag);
 
-    public void NavigateToPageTag(string tag) => NavigateToPage(tag, force: false, suppressTransition: true);
+    public void SaveWindowBoundsFromRuntime() => _shell.SaveWindowBounds();
 
-    public void SaveWindowBoundsFromRuntime()
-    {
-        SaveWindowBounds();
-    }
-
+    /// <summary>表示中のスケジュールのページを描き直す（スケジュールの実行・変更の後に AppRuntime から呼ぶ）。</summary>
     public void RefreshCurrentPage()
     {
         if (ContentFrame.Content is ISchedulePage schedulePage)
             schedulePage.RefreshDisplay();
     }
 
-    private static string GetDefaultPageTag() => "Shutdown";
+    /// <summary>左ナビのタグ → ページの型（知らないタグはシャットダウン）。ページを足したらここと XAML の項目を足す。</summary>
+    private static Type ResolvePageType(string tag) => tag switch
+    {
+        "Restart" => typeof(RestartPage),
+        "Wake" => typeof(WakePage),
+        "Settings" => typeof(SettingsPage),
+        "Info" => typeof(InfoPage),
+        _ => typeof(ShutdownPage)
+    };
 
     private void ApplyWindowIcon()
     {
-        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app_icon.ico");
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", IconFileName);
         if (!File.Exists(iconPath))
             return;
 
@@ -87,6 +86,7 @@ public sealed partial class MainWindow : Window, IAppMainWindow
         }
         catch
         {
+            // SetIcon が失敗する環境向けの予備: Win32 の LoadImage で読み、WM_SETICON で窓に付ける
             IntPtr hwnd = WindowNative.GetWindowHandle(this);
             IntPtr hIcon = PInvokeHelper.LoadImageIcon(iconPath);
             if (hIcon != IntPtr.Zero)
@@ -94,113 +94,6 @@ public sealed partial class MainWindow : Window, IAppMainWindow
         }
     }
 
-    private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
-    {
-        if (_runtime.IsExitingProcess || !_windowBoundsReady)
-            return;
-
-        if (args.DidSizeChange || args.DidPositionChange)
-            SaveWindowBounds();
-    }
-
-    private void SaveWindowBounds()
-    {
-        if (!_windowBoundsReady)
-            return;
-
-        WindowPlacementHelper.Save(this, _runtime.Settings);
-    }
-
-    private void RestoreWindowBounds()
-    {
-        WindowPlacementHelper.Restore(this, _runtime.Settings, DefaultClientWidth, DefaultClientHeight);
-    }
-
-    private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
-    {
-        if (_runtime.IsExitingProcess)
-            return;
-
-        SaveWindowBounds();
-        _runtime.OnMainWindowClosing(this);
-
-        // × は本当に Close する（Hide しない）。閉じた後（常駐継続 / デバッグ実行中の終了）は AppRuntimeBase が決める
-        args.Cancel = false;
-        AppWindow.Closing -= AppWindow_Closing;
-        AppWindow.Changed -= AppWindow_Changed;
-    }
-
-    private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs e)
-    {
-        Title = $"{Strings.Get("AppName")} - {e.Exception?.Message}";
-    }
-
-    private void ConfigureMinimumWindowSize()
-    {
-        if (AppWindow.Presenter is not OverlappedPresenter presenter)
-            return;
-
-        presenter.IsResizable = true;
-        double scaleFactor = RootGrid.XamlRoot?.RasterizationScale ?? 1.0;
-        presenter.PreferredMinimumWidth = (int)(MinimumWindowWidth * scaleFactor);
-        presenter.PreferredMinimumHeight = (int)(MinimumWindowHeight * scaleFactor);
-        presenter.PreferredMaximumWidth = 10000;
-        presenter.PreferredMaximumHeight = 10000;
-    }
-
-    private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
-    {
-        if (args.InvokedItemContainer is NavigationViewItem item && item.Tag is string tag)
-            NavigateToPage(tag);
-    }
-
-    private void NavigateToPage(string tag, bool force = false, bool suppressTransition = false)
-    {
-        if (!force && _currentPageTag == tag && ContentFrame.CurrentSourcePageType != null)
-        {
-            UpdateNavSelection(tag);
-            return;
-        }
-
-        _currentPageTag = tag;
-        Type pageType = tag switch
-        {
-            "Restart" => typeof(RestartPage),
-            "Wake" => typeof(WakePage),
-            "Settings" => typeof(SettingsPage),
-            "Info" => typeof(InfoPage),
-            _ => typeof(ShutdownPage)
-        };
-
-        if (force || ContentFrame.CurrentSourcePageType != pageType)
-        {
-            if (suppressTransition)
-                ContentFrame.Navigate(pageType, _appState, new SuppressNavigationTransitionInfo());
-            else
-                ContentFrame.Navigate(pageType, _appState);
-        }
-
-        UpdateNavSelection(tag);
-    }
-
-    private void UpdateNavSelection(string tag)
-    {
-        NavigationViewItem? match = null;
-        foreach (NavigationViewItem item in NavView.MenuItems.OfType<NavigationViewItem>())
-        {
-            if (item.Tag as string == tag)
-                match = item;
-        }
-
-        foreach (NavigationViewItem item in NavView.FooterMenuItems.OfType<NavigationViewItem>())
-        {
-            if (item.Tag as string == tag)
-                match = item;
-        }
-
-        if (match != null)
-            NavView.SelectedItem = match;
-        else if (NavItemHome != null)
-            NavView.SelectedItem = NavItemHome;
-    }
+    private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args) =>
+        _shell.OnNavItemInvoked(sender, args);
 }

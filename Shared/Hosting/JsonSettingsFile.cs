@@ -18,10 +18,30 @@ public static class JsonSettingsFile
     private const string BackupSuffix = ".bak";
 
     /// <summary>
+    /// 読み込みの既定設定。リスト・配列のプロパティだけ「保存値で置き換える」にする。
+    /// Newtonsoft の既定（Reuse）だと、コンストラクタで既定値を入れたリストに保存値が「追加」され、
+    /// 保存と読み込みのたびに要素が増えていく（以前は SunriseWatcher / MusicPlayer だけが個別に避けていた）。
+    /// 辞書は従来どおり足し合わせる（新しい版で増えた既定のキーを、既存の設定にも取り込めるようにするため）。
+    /// </summary>
+    private static readonly JsonSerializerSettings DefaultLoadSettings = new()
+    {
+        ContractResolver = new ReplaceListsContractResolver()
+    };
+
+    /// <summary>
+    /// 保存の排他（パスごと）。一時ファイル名が固定なので、同じファイルを同時に保存すると片方が黙って失敗していた。
+    /// キーは大文字小文字を区別しない（Windows のパスのため）。
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> SaveLocks =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// JSON を読み込む。ファイルが無い・壊れている・中身が null のときは null を返す（呼び出し側で既定値を作る）。
+    /// serializerSettings を渡さないときは、リストを置き換える既定設定を使う。
     /// </summary>
     public static T? Load<T>(string path, JsonSerializerSettings? serializerSettings = null) where T : class
     {
+        serializerSettings ??= DefaultLoadSettings;
         try
         {
             if (!File.Exists(path))
@@ -64,7 +84,11 @@ public static class JsonSettingsFile
         try
         {
             string json = JsonConvert.SerializeObject(value, Formatting.Indented, serializerSettings);
-            WriteAllTextAtomic(path, json);
+            // 同じファイルへの保存は 1 つずつ（UI スレッドと監視タイマーなどから同時に呼ばれても壊さない）
+            lock (SaveLocks.GetOrAdd(Path.GetFullPath(path), _ => new object()))
+            {
+                WriteAllTextAtomic(path, json);
+            }
             return true;
         }
         catch (Exception ex)
@@ -112,5 +136,35 @@ public static class JsonSettingsFile
         }
 
         File.Move(tempPath, path, overwrite: true);
+    }
+
+    /// <summary>
+    /// リスト・配列（辞書以外のコレクション）のプロパティだけ ObjectCreationHandling.Replace にする。
+    /// 個別に [JsonProperty(ObjectCreationHandling = ...)] が付いているプロパティは、その指定を優先する。
+    /// </summary>
+    private sealed class ReplaceListsContractResolver : Newtonsoft.Json.Serialization.DefaultContractResolver
+    {
+        protected override Newtonsoft.Json.Serialization.JsonProperty CreateProperty(
+            System.Reflection.MemberInfo member, MemberSerialization memberSerialization)
+        {
+            var property = base.CreateProperty(member, memberSerialization);
+            Type? type = property.PropertyType;
+            // 書き込めない（getter だけの）プロパティは置き換えられないので、従来どおり既存のリストへ読み込む
+            if (property.ObjectCreationHandling == null && property.Writable && type != null && type != typeof(string)
+                && typeof(System.Collections.IEnumerable).IsAssignableFrom(type)
+                && !typeof(System.Collections.IDictionary).IsAssignableFrom(type)
+                && !IsGenericDictionary(type))
+            {
+                property.ObjectCreationHandling = ObjectCreationHandling.Replace;
+            }
+
+            return property;
+        }
+
+        private static bool IsGenericDictionary(Type type) =>
+            type.GetInterfaces().Append(type).Any(t =>
+                t.IsGenericType
+                && (t.GetGenericTypeDefinition() == typeof(IDictionary<,>)
+                    || t.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)));
     }
 }

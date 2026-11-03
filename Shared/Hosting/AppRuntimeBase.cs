@@ -137,14 +137,21 @@ public abstract class AppRuntimeBase : IDisposable
     {
     }
 
-    /// <summary>復帰時の再適用（UI スレッド）。既定は SystemResumed を発火。</summary>
-    protected virtual void OnResumeApplyCore() => RaiseSystemResumed();
+    /// <summary>
+    /// 復帰時の再適用（UI スレッド）。SystemResumed はこのメソッドの後に共通部が必ず発火するので、
+    /// 上書きしたときに base を呼ぶ必要はない（呼んでも二重には発火しない）。
+    /// </summary>
+    protected virtual void OnResumeApplyCore()
+    {
+    }
 
     /// <summary>
     /// UI スレッドへ積めなかったときの直接適用（任意スレッドから呼ばれる。UI を触らない処理だけにする）。
-    /// 既定は SystemResumed を発火。
+    /// SystemResumed は OnResumeApplyCore と同じく、このメソッドの後に共通部が必ず発火する。
     /// </summary>
-    protected virtual void OnResumeApplyDirectCore() => RaiseSystemResumed();
+    protected virtual void OnResumeApplyDirectCore()
+    {
+    }
 
     /// <summary>
     /// true のとき、ウォッチドッグ（通常 30 秒・復帰直後 2.5 秒間隔）で <see cref="OnResumeWatchdogCore"/> を呼ぶ。
@@ -173,12 +180,36 @@ public abstract class AppRuntimeBase : IDisposable
 
     protected void RaiseSystemResumed() => SystemResumed?.Invoke();
 
+    /// <summary>
+    /// --background（ログオン時の自動起動）で起動したか。Start の最初で決まる
+    /// （以前は DevToolManager / HomeServerManager がコンストラクタ引数 launchedAtLogon で別に受け取っていた）。
+    /// </summary>
+    protected bool LaunchedInBackground { get; private set; }
+
+    /// <summary>
+    /// トレイのバルーン通知を出す（どのスレッドから呼んでもよい）。
+    /// トレイを使わない・まだ準備できていない・アイコンを隠しているときは何もしない。
+    /// </summary>
+    protected void ShowTrayBalloon(string title, string body, bool isWarning = false)
+    {
+        UiDispatcher.TryEnqueue(() =>
+        {
+            if (_isExitingProcess || _hostSettings.HideTrayIcon)
+                return;
+
+            // 通知の失敗（シェルの再起動直後など）でアプリを落とさない
+            try { TrayIcon?.ShowBalloon(title, body, isWarning); }
+            catch { }
+        });
+    }
+
     // ───────── 起動 ─────────
 
     /// <param name="launchInBackground">--background（ログオン起動）。窓を出さずに常駐だけ始める。</param>
     /// <param name="requestInteractiveShow">ユーザー操作の起動なら true（窓を出す）。</param>
     public void Start(bool launchInBackground, bool requestInteractiveShow)
     {
+        LaunchedInBackground = launchInBackground;
         ThemeService.Initialize(_hostSettings.ThemePreference);
         StartListeners();
 
@@ -478,9 +509,9 @@ public abstract class AppRuntimeBase : IDisposable
         _trayInitialized = false;
 
         // 自動起動 OFF のまま終了するときは、念のためログオンタスクの残骸を消す
-        if (Profile.SyncAutostart != null && !_hostSettings.AutoStart)
+        if (Profile.UseAutoStart && !_hostSettings.AutoStart)
         {
-            try { Profile.SyncAutostart(false); } catch { }
+            try { Profile.CleanupAutostart(); } catch { }
         }
 
         try { SingleInstance.Release(); } catch { }
@@ -727,6 +758,8 @@ public abstract class AppRuntimeBase : IDisposable
         {
             EnsureResidentLifetime();
             OnResumeApplyCore();
+            // 派生側が base を呼ばなくても購読者に届くよう、発火はここで 1 回だけ行う
+            RaiseSystemResumed();
         }
         catch (Exception ex)
         {
@@ -742,6 +775,7 @@ public abstract class AppRuntimeBase : IDisposable
         try
         {
             OnResumeApplyDirectCore();
+            RaiseSystemResumed();
         }
         catch (Exception ex)
         {

@@ -1,4 +1,4 @@
-﻿// v2.3.4
+﻿// v2.4.0
 
 using Microsoft.UI.Xaml;
 using SmartPowerManager.Services;
@@ -18,46 +18,41 @@ namespace SmartPowerManager
         public App()
         {
             InitializeComponent();
-            // × で MainWindow を破棄してもトレイ常駐を続ける（明示 Exit まで終了しない）
+            // × で MainWindow を破棄してもプロセスは継続する（トレイ常駐 / 明示 Exit まで終了しない）。
+            // ウィンドウ型でも同じ設定にし、終了は AppRuntimeBase.ExitApplication の 1 経路に揃える
             DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
-            UnhandledException += App_UnhandledException;
+            UnhandledException += (_, e) => AppBootstrap.HandleUnhandledException(e);
+            // UI スレッド以外の例外と、待たれずに失敗した Task の例外も lifetime.log に残す
+            AppBootstrap.InstallGlobalExceptionLogging();
         }
-
-        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e) =>
-            AppBootstrap.HandleUnhandledException(e);
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
+            // 旧版のスケジュールファイルを新しい置き場所へ写す（無ければ何もしない）
             ConfigMigrationService.MigrateIfNeeded();
-            ConfigMigrationService.RunStartupCleanup();
-
-            // --cleanup-autostart / --sync-autostart は Program.Main（WinUI 起動前）で処理済み
 
             var settings = Settings.Load();
-            bool launchInBackground = AppBootstrap.HasCommandLineArg(AppBootstrap.BackgroundArg);
-            bool requestInteractiveShow = !launchInBackground;
 
-            if (!SingleInstance.TryBecomePrimaryInstance(requestInteractiveShow))
-            {
-                Exit();
+            // Python 版の自動起動（レジストリ Run）が残っていれば、ログオンタスクへ移す。
+            // 移したあとの「Release のときだけ行う同期」で消されないよう、設定の自動起動も ON にしておく
+            // （二重起動で終わるプロセスは保存しないので、ここで書き換えても害はない）
+            if (settings.UseLogonTask && ConfigMigrationService.IsPythonRegistryAutostartEnabled())
+                settings.AutoStart = true;
+
+            // 単一インスタンス・自動起動の移行（AppSetup の customMigrate）と同期は共通処理。
+            // 二重起動なら null（既存の窓に表示を頼んで終了済み）
+            PrimaryLaunch? launch = AppBootstrap.BeginPrimaryLaunch(this, settings);
+            if (launch == null)
                 return;
-            }
 
-            // スタートアップ（レジストリ）方式を選んでいるときは移行で Run を消さない
-            if (settings.UseLogonTask)
-                StartupManager.MigrateFromPythonRegistryIfNeeded();
-
-            // primary のみタスクを更新する（--background 二重起動の CreateOrUpdate で本体が落ちるのを防ぐ）
-#if !DEBUG
-            // 起動時にログオンタスクを「今動いている exe」へ合わせ直す。
-            // Debug ビルドで行うと、インストール版の登録が bin\Debug の exe に書き換わってしまうため Release のみ。
-            // （設定画面で自動起動を切り替えたときや --sync-autostart の明示同期は Debug でも行う）
-            StartupManager.SyncAutostartWithSettings(settings.AutoStart, settings.UseLogonTask);
-#endif
+            // 起動時の後始末（古いショートカット・更新の残骸・ログオンタスク方式なら Python 版の Run）。
+            // 以前は移行より前に呼んでいたため、Python 版の Run が先に消えて移行が一度も動かなかった。
+            // 移行のあと・primary に決まってからだけ行う
+            ConfigMigrationService.RunStartupCleanup(settings.UseLogonTask);
             settings.Save();
 
             _runtime = new AppRuntime(this, settings);
-            _runtime.Start(launchInBackground, requestInteractiveShow);
+            _runtime.Start(launch.LaunchInBackground, launch.RequestInteractiveShow);
         }
     }
 }

@@ -24,12 +24,18 @@ public static class ConfigMigrationService
             File.Copy(parentLegacy, AppPaths.SchedulesFilePath);
     }
 
-    public static void RunStartupCleanup()
+    /// <summary>
+    /// 起動時の後始末（primary に決まり、自動起動の移行が済んだあとに呼ぶ）。
+    /// Python 版の Run はこのアプリのスタートアップ（Run）方式と同じ名前なので、
+    /// ログオンタスク方式のときだけ消す（Run 方式で消すと、選んだ自動起動まで消えてしまう）。
+    /// </summary>
+    public static void RunStartupCleanup(bool useLogonTask)
     {
         CleanManualStartupShortcuts();
         CleanOldUpdateFiles();
         CleanupLegacyBat();
-        RemovePythonRegistryAutostart();
+        if (useLogonTask)
+            RemovePythonRegistryAutostart();
     }
 
     /// <summary>Python 版レジストリ Run とスタートアップフォルダのショートカットを削除する。</summary>

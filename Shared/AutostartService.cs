@@ -44,8 +44,24 @@ public static class AutostartService
         GetLogonTaskCommand(id) != null
         || (id.AllowRegistryRun && GetRegistryStartupCommand(id) != null);
 
+    /// <summary>ログオンタスクが登録されているか（Run は見ない。旧方式からの移行の判定に使う）。</summary>
+    public static bool IsLogonTaskEnabled(AutostartIdentity id) => GetLogonTaskCommand(id) != null;
+
     public static bool Sync(AutostartIdentity id, bool enable, bool useLogonTask = true, System.Action? extraCleanup = null)
     {
+#if DEBUG
+        // Debug ビルドでは bin\Debug の exe を自動起動に登録しない（SubMonitorSleeper で起きたクラッシュの対策を共通化）。
+        // 登録すると、ログオン時に Debug 版が常駐し、その横で VS が再ビルドして .pri / XAML を差し替えるため、
+        // 次に画面を開いた瞬間に XAML の読み込みに失敗して落ちる。タスク名はインストール版と共通なので、
+        // インストール版の登録も書き換えない・消さない。
+        // 例外: OFF にしたとき「今の Debug exe を指す登録」が残っていれば、その掃除だけは行う。
+        // 別の exe を代わりに登録する場合（ExecutablePath 指定。DevToolManager など）は対象外
+        if (string.IsNullOrWhiteSpace(id.ExecutablePath) && (enable || !IsRegisteredToCurrentExe(id)))
+        {
+            AppHost.AppendLifetimeLog($"autostart-sync-skipped-debug enable={enable}");
+            return true;
+        }
+#endif
         if (!enable)
         {
             RemoveAllAutostartTasks(id);
@@ -69,6 +85,26 @@ public static class AutostartService
         CleanStartupShortcuts(id);
         return CreateRegistryStartup(id);
     }
+
+#if DEBUG
+    /// <summary>今動いている exe（bin\Debug）を指す登録が、タスクか Run のどちらかに残っているか。</summary>
+    private static bool IsRegisteredToCurrentExe(AutostartIdentity id)
+    {
+        string exePath = Environment.ProcessPath ?? string.Empty;
+        if (exePath.Length == 0)
+            return false;
+
+        // 登録コマンドは「"パス" --background」の形なので、パスを含むかで判定する（大文字小文字は無視）
+        foreach (bool preferLogonTask in new[] { true, false })
+        {
+            string? command = GetRegisteredCommand(id, preferLogonTask);
+            if (command != null && command.Contains(exePath, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+#endif
 
     public static string? GetRegisteredCommand(AutostartIdentity id, bool preferLogonTask = true)
     {
