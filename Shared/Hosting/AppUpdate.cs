@@ -26,6 +26,16 @@ public static class AppUpdate
     /// <summary>リダイレクトをたどる回数の上限（ファイルの置き場所への転送や、リポ名変更の転送に使われる）。</summary>
     private const int MaxRedirects = 5;
 
+    /// <summary>GitHub の asset の digest の頭（"sha256:" + 16 進 64 文字）。</summary>
+    private const string Sha256DigestPrefix = "sha256:";
+
+    /// <summary>
+    /// 更新確認で見つけた setup.exe の「ダウンロード URL → SHA256」。
+    /// ダウンロードの入口（情報ページ・起動時ダイアログ・各アプリ独自の呼び出し）は URL とファイル名しか渡さないので、
+    /// 呼び出し側を変えずに照合できるよう、ここで覚えておいて <see cref="DownloadAndInstallAsync"/> で引く。
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> KnownAssetSha256 = new();
+
     /// <summary>
     /// HttpClient はプロセスで 1 個を使い回す（呼ぶたびに new すると接続が TIME_WAIT で残りやすい）。
     /// 処理ごとに待ち時間が違うので、Timeout は無制限にしておき、呼び出しごとに CancellationToken で切る。
@@ -92,7 +102,9 @@ public static class AppUpdate
 
             if (compare > 0)
             {
-                var (downloadUrl, assetFileName) = SelectSetupAsset(release["assets"] as JArray, authenticated);
+                var (downloadUrl, assetFileName, assetSha256) = SelectSetupAsset(release["assets"] as JArray, authenticated);
+                if (downloadUrl != null && assetSha256 != null)
+                    KnownAssetSha256[downloadUrl] = assetSha256;
 
                 return new UpdateCheckResult
                 {
@@ -101,7 +113,8 @@ public static class AppUpdate
                     LatestVersion = latestVersion,
                     ReleasePageUrl = htmlUrl,
                     DownloadUrl = downloadUrl,
-                    AssetFileName = assetFileName
+                    AssetFileName = assetFileName,
+                    AssetSha256 = assetSha256
                 };
             }
 
@@ -190,13 +203,14 @@ public static class AppUpdate
     /// 非公開リポ（ログイン情報で取れた）とき true。browser_download_url はログインしたブラウザ専用なので、
     /// 代わりに API の asset URL（https://api.github.com/.../releases/assets/{id}）を使う。
     /// </param>
-    private static (string? DownloadUrl, string? FileName) SelectSetupAsset(JArray? assets, bool authenticated)
+    private static (string? DownloadUrl, string? FileName, string? Sha256) SelectSetupAsset(JArray? assets, bool authenticated)
     {
         if (assets == null)
-            return (null, null);
+            return (null, null, null);
 
         string? fallbackUrl = null;
         string? fallbackName = null;
+        string? fallbackSha256 = null;
 
         foreach (var asset in assets.OfType<JObject>())
         {
@@ -208,15 +222,31 @@ public static class AppUpdate
             if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 continue;
 
+            string? sha256 = ParseSha256Digest(asset["digest"]?.ToString());
+
             // 最優先: *-setup.exe / *setup*.exe
             if (name.Contains("setup", StringComparison.OrdinalIgnoreCase))
-                return (url, name);
+                return (url, name, sha256);
 
             fallbackUrl ??= url;
             fallbackName ??= name;
+            fallbackSha256 ??= sha256;
         }
 
-        return (fallbackUrl, fallbackName);
+        return (fallbackUrl, fallbackName, fallbackSha256);
+    }
+
+    /// <summary>
+    /// GitHub の asset の digest（"sha256:&lt;16 進 64 文字&gt;"）から 16 進の部分を小文字で取り出す。
+    /// 無い・形が違う（ほかの方式のハッシュなど）ときは null にして、照合しない扱いにする。
+    /// </summary>
+    private static string? ParseSha256Digest(string? digest)
+    {
+        if (string.IsNullOrWhiteSpace(digest) || !digest.StartsWith(Sha256DigestPrefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        string hex = digest[Sha256DigestPrefix.Length..].Trim();
+        return hex.Length == 64 && hex.All(Uri.IsHexDigit) ? hex.ToLowerInvariant() : null;
     }
 
     /// <summary>"1.2.10" と "1.2.9" のような版を数値として比べる（文字列比較だと 10 &lt; 9 になるため）。</summary>
@@ -243,13 +273,22 @@ public static class AppUpdate
     /// Inno Setup の setup.exe を Temp にダウンロードして起動し、アプリを終了する。
     /// folder インストール／単体 exe 差し替えには対応しない。
     /// </summary>
+    /// <param name="expectedSha256">
+    /// setup.exe の SHA256（16 進）。省略すると、更新確認のときに GitHub から取った値を URL で引く。
+    /// どちらも無ければ照合しない（digest を返さない古いリリースでも今までどおり更新できるように）。
+    /// </param>
     public static async Task<string> DownloadAndInstallAsync(
         string downloadUrl,
         string fileName,
-        IProgress<string>? progress = null)
+        IProgress<string>? progress = null,
+        string? expectedSha256 = null)
     {
-        if (!fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        // asset 名はリリース側から来る値なので、フォルダ区切りを含んでいても Temp の外へ書かないよう名前だけにする
+        fileName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             return AppHost.GetString("Update_SetupRequired");
+
+        expectedSha256 ??= KnownAssetSha256.TryGetValue(downloadUrl, out string? known) ? known : null;
 
         // Temp に DL（インストール先の exe を上書きしない）
         string downloadDir = Path.Combine(Path.GetTempPath(), AppHost.Profile.AppName + "Update");
@@ -271,6 +310,17 @@ public static class AppUpdate
             await body.CopyToAsync(file, cts.Token);
         }
 
+        // ダウンロードしたものが、リリースに載っている setup.exe と同じか確かめる（途中で壊れた・すり替わったものを起動しない）
+        if (expectedSha256 != null)
+        {
+            string actual = await ComputeSha256Async(targetPath);
+            if (!actual.Equals(expectedSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                try { File.Delete(targetPath); } catch { /* 消せなくても起動はしない */ }
+                throw new InvalidOperationException(GetStringOrDefault("Update_HashMismatch", HashMismatchFallbackText));
+            }
+        }
+
         progress?.Report(AppHost.GetString("Update_LaunchingSetup"));
 
         Process.Start(new ProcessStartInfo
@@ -286,6 +336,34 @@ public static class AppUpdate
             Application.Current.Exit();
 
         return AppHost.GetString("Update_SetupStarted");
+    }
+
+    /// <summary>
+    /// 照合が合わなかったときの文言（アプリの .resw に Update_HashMismatch が無いときに使う。
+    /// 共通部を同期しただけで .resw を直していないアプリでも、意味の通る文が出るように）。
+    /// </summary>
+    private const string HashMismatchFallbackText =
+        "ダウンロードしたファイルがリリースの内容と一致しません。Release ページから手動で更新してください。";
+
+    private static async Task<string> ComputeSha256Async(string path)
+    {
+        await using var stream = File.OpenRead(path);
+        byte[] hash = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    /// <summary>リソースの文字列を取る。キーが無い（空が返る・例外になる）ときは fallback。</summary>
+    private static string GetStringOrDefault(string key, string fallback)
+    {
+        try
+        {
+            string value = AppHost.GetString(key);
+            return string.IsNullOrWhiteSpace(value) || value == key ? fallback : value;
+        }
+        catch
+        {
+            return fallback;
+        }
     }
 
     // ───────── UI フロー（UpdateFlow へ文言と処理を渡す薄い入口） ─────────

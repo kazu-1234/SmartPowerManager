@@ -16,4 +16,10 @@ public sealed class UpdateCheckResult
     public string? ReleasePageUrl { get; set; }
     public string? DownloadUrl { get; set; }
     public string? AssetFileName { get; set; }
+
+    /// <summary>
+    /// setup.exe の SHA256（16 進の小文字。GitHub の asset の digest から取る）。
+    /// GitHub が返さない古いリリースなどでは null（そのときは照合しない）。
+    /// </summary>
+    public string? AssetSha256 { get; set; }
 }

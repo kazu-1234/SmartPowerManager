@@ -39,3 +39,6 @@ Desktop.ini
 
 # ローカル専用の作業履歴（push しない）
 version_history.txt
+
+# Python 版の版履歴（ローカル専用。push しない）
+Python/version_history.txt

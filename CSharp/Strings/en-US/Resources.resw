@@ -146,6 +146,9 @@
   <data name="Update_SetupStarted" xml:space="preserve"><value>Installer launched. Follow the prompts to update.</value></data>
   <data name="Update_SetupRequired" xml:space="preserve"><value>Inno Setup setup.exe was not found. Update manually from the Release page.</value></data>
   <data name="Update_Failed" xml:space="preserve"><value>Update failed: {0}</value></data>
+  <data name="Update_HashMismatch" xml:space="preserve">
+    <value>The downloaded file does not match the release. Please update manually from the release page.</value>
+  </data>
   <data name="Update_DisclaimerHeader" xml:space="preserve"><value>免責事項</value></data>
   <data name="Update_DisclaimerBody" xml:space="preserve"><value>本ソフトウェアの使用により生じたいかなる損害についても、開発者は一切の責任を負いません。自己責任でご使用ください。</value></data>
   <data name="Update_AvailableTitle" xml:space="preserve"><value>更新あり</value></data>

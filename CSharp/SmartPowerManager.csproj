@@ -15,7 +15,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
     <ApplicationDefaultLanguage>ja-JP</ApplicationDefaultLanguage>
-    <Version>2.4.0</Version>
+    <Version>2.4.1</Version>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- 配布（単一 exe・dotnet publish 時）に必要な WinUI unpackaged 設定 -->
     <SelfContained Condition="'$(PublishSingleFile)' == 'true'">true</SelfContained>
